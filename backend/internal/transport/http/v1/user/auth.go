@@ -121,7 +121,7 @@ func (h *UserHandler) RefreshToken(ctx context.Context, req v1.RefreshTokenReque
 			Token string `json:"token"`
 		}{Token: accessToken},
 		Headers: v1.RefreshToken200ResponseHeaders{
-			SetCookie: &cookieStr,
+			SetCookie: cookieStr,
 		},
 	}, nil
 }
@@ -135,7 +135,7 @@ func (h *UserHandler) Logout(_ context.Context, _ v1.LogoutRequestObject) (v1.Lo
 			Message string `json:"message"`
 		}{Message: "logged out"},
 		Headers: v1.Logout200ResponseHeaders{
-			SetCookie: &cookieStr,
+			SetCookie: cookieStr,
 		},
 	}, nil
 }

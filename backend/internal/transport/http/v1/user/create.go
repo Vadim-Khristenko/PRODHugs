@@ -76,7 +76,7 @@ func (h *UserHandler) RegisterUser(ctx context.Context, req v1.RegisterUserReque
 			Token: accessToken,
 		},
 		Headers: v1.RegisterUser201ResponseHeaders{
-			SetCookie: &cookieStr,
+			SetCookie: cookieStr,
 		},
 	}, nil
 }
