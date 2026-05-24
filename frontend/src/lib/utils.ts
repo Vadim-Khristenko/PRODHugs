@@ -39,6 +39,8 @@ export function hugFeedPhrase(gender?: string | null, hugType?: string): string 
       return `${verb} вместе со всеми`
     case 'soul':
       return `по-душевному ${verb}`
+    case 'agressive':
+      return `агрессивно ${verb}`
     default:
       return verb
   }
@@ -64,6 +66,8 @@ export function hugSuggestionPhrase(hugType?: string): string {
       return 'хочет обнять тебя вместе со всеми'
     case 'soul':
       return 'хочет обнять тебя по-душевному'
+    case 'agressive':
+      return 'хочет агрессивно тебя обнять'
     default:
       return 'предлагает обняться'
   }
@@ -83,6 +87,8 @@ export function hugCompletedToast(username: string, hugType?: string): string {
       return `Групповые обнимашки с ${username} приняты!`
     case 'soul':
       return `Душевные обнимашки с ${username} приняты!`
+    case 'agressive':
+      return `Агрессивные обнимашки с ${username} приняты!`
     default:
       return `Обнимашки с ${username} приняты!`
   }
@@ -99,6 +105,8 @@ export function hugTypeLabel(hugType: string): string {
       return 'Тёплые'
     case 'soul':
       return 'Душевные'
+    case 'agressive':
+      return 'Агрессивные'
     default:
       return 'Обычные'
   }

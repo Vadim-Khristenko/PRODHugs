@@ -22,6 +22,7 @@ const (
 	HugTypeGroup    = "group"
 	HugTypeWarm     = "warm"
 	HugTypeSoul     = "soul"
+	HugTypeAgressive = "agressive"
 )
 
 type Hug struct {

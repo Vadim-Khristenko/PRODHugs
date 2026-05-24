@@ -14,7 +14,7 @@ import {
 } from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 
-export type HugType = 'standard' | 'bear' | 'group' | 'warm' | 'soul'
+export type HugType = 'standard' | 'bear' | 'group' | 'warm' | 'soul' | 'agressive'
 
 export interface HugFeedItem {
   id: string

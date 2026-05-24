@@ -49,10 +49,10 @@ type ConnectionItem struct {
 var IntimacyTiers = []IntimacyTier{
 	{Level: 0, Name: "Незнакомцы", MinScore: 0, CooldownReduction: 0.0, BonusCoins: 0, UnlockedHugTypes: []string{HugTypeStandard}},
 	{Level: 1, Name: "Знакомые", MinScore: 5, CooldownReduction: 0.10, BonusCoins: 0, UnlockedHugTypes: []string{HugTypeStandard}},
-	{Level: 2, Name: "Приятели", MinScore: 15, CooldownReduction: 0.20, BonusCoins: 1, UnlockedHugTypes: []string{HugTypeStandard, HugTypeBear}},
-	{Level: 3, Name: "Друзья", MinScore: 30, CooldownReduction: 0.30, BonusCoins: 1, UnlockedHugTypes: []string{HugTypeStandard, HugTypeBear, HugTypeGroup}},
-	{Level: 4, Name: "Близкие", MinScore: 50, CooldownReduction: 0.40, BonusCoins: 2, UnlockedHugTypes: []string{HugTypeStandard, HugTypeBear, HugTypeGroup, HugTypeWarm}},
-	{Level: 5, Name: "Родные души", MinScore: 80, CooldownReduction: 0.50, BonusCoins: 2, UnlockedHugTypes: []string{HugTypeStandard, HugTypeBear, HugTypeGroup, HugTypeWarm, HugTypeSoul}},
+	{Level: 2, Name: "Приятели", MinScore: 15, CooldownReduction: 0.20, BonusCoins: 1, UnlockedHugTypes: []string{HugTypeStandard, HugTypeBear, HugTypeAgressive}},
+	{Level: 3, Name: "Друзья", MinScore: 30, CooldownReduction: 0.30, BonusCoins: 1, UnlockedHugTypes: []string{HugTypeStandard, HugTypeBear, HugTypeAgressive, HugTypeGroup}},
+	{Level: 4, Name: "Близкие", MinScore: 50, CooldownReduction: 0.40, BonusCoins: 2, UnlockedHugTypes: []string{HugTypeStandard, HugTypeBear, HugTypeAgressive, HugTypeGroup, HugTypeWarm}},
+	{Level: 5, Name: "Родные души", MinScore: 80, CooldownReduction: 0.50, BonusCoins: 2, UnlockedHugTypes: []string{HugTypeStandard, HugTypeBear, HugTypeAgressive, HugTypeGroup, HugTypeWarm, HugTypeSoul}},
 }
 
 // ComputeTier returns the tier for a given raw score.
@@ -116,7 +116,7 @@ type LeaderboardPairEntry struct {
 // ValidHugType checks if the string is a valid hug type.
 func ValidHugType(hugType string) bool {
 	switch hugType {
-	case HugTypeStandard, HugTypeBear, HugTypeGroup, HugTypeWarm, HugTypeSoul:
+	case HugTypeStandard, HugTypeBear, HugTypeGroup, HugTypeWarm, HugTypeSoul, HugTypeAgressive:
 		return true
 	default:
 		return false
