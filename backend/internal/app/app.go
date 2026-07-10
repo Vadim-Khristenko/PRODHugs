@@ -142,7 +142,7 @@ func New(ctx context.Context, cfg *config.Config, l *slog.Logger) (*App, error) 
 	tgBot := notifytg.NewBot(tgClient, tgLinkStore, userRepo, hugService, userService, a.l)
 
 	// Inbound Matrix bot (sync loop): auto-joins DMs, consumes link commands.
-	matrixBot := notifymatrix.NewBot(matrixProvider, userRepo, matrixLinkStore, a.l)
+	matrixBot := notifymatrix.NewBot(matrixProvider, userRepo, hugService, notifRefRepo, matrixLinkStore, a.l)
 
 	// Link stores for the user service (generating link tokens/commands).
 	userService.SetTelegramLinkStore(tgLinkStore, a.cfg.Telegram.BotUsername)
