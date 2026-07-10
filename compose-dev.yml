@@ -45,6 +45,10 @@ services:
       CORS_ALLOW_ORIGINS: "${CORS_ALLOW_ORIGINS:-http://localhost:3000,http://localhost:3001}"
       TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN}"
       TELEGRAM_BOT_USERNAME: "${TELEGRAM_BOT_USERNAME}"
+      MATRIX_HOMESERVER_URL: "${MATRIX_HOMESERVER_URL:-}"
+      MATRIX_USER_ID: "${MATRIX_USER_ID:-}"
+      MATRIX_ACCESS_TOKEN: "${MATRIX_ACCESS_TOKEN:-}"
+      DAILY_REMINDER_HOUR_UTC: "${DAILY_REMINDER_HOUR_UTC:-8}"
     restart: unless-stopped
     depends_on:
       postgres:
