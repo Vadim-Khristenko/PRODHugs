@@ -87,7 +87,7 @@ func (h *UserHandler) PollTelegramLogin(ctx context.Context, req v1.PollTelegram
 				Token: accessToken,
 			},
 			Headers: v1.PollTelegramLogin200ResponseHeaders{
-				SetCookie: cookieStr,
+				SetCookie: &cookieStr,
 			},
 		}, nil
 

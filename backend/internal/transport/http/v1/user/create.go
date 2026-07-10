@@ -7,6 +7,7 @@ import (
 	"go-service-template/internal/models"
 	v1 "go-service-template/internal/transport/http/v1"
 	"regexp"
+	"unicode/utf8"
 )
 
 var (
@@ -15,7 +16,20 @@ var (
 	hasSpecial = regexp.MustCompile(`[^a-zA-Z0-9\s]`)
 )
 
+const (
+	maxUsernameRunes    = 32
+	maxDisplayNameRunes = 32
+)
+
 func (h *UserHandler) RegisterUser(ctx context.Context, req v1.RegisterUserRequestObject) (v1.RegisterUserResponseObject, error) {
+	if utf8.RuneCountInString(req.Body.Username) > maxUsernameRunes {
+		return v1.RegisterUser400JSONResponse{
+			BadRequestJSONResponse: v1.BadRequestJSONResponse{
+				Code:    v1.NAMETOOLONG,
+				Message: "username must not exceed 32 characters",
+			},
+		}, nil
+	}
 	if !hasLetter.MatchString(req.Body.Password) {
 		return v1.RegisterUser400JSONResponse{
 			BadRequestJSONResponse: v1.BadRequestJSONResponse{
@@ -76,7 +90,7 @@ func (h *UserHandler) RegisterUser(ctx context.Context, req v1.RegisterUserReque
 			Token: accessToken,
 		},
 		Headers: v1.RegisterUser201ResponseHeaders{
-			SetCookie: cookieStr,
+			SetCookie: &cookieStr,
 		},
 	}, nil
 }

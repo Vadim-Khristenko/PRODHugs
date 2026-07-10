@@ -49,6 +49,7 @@ components:
         - COMMENT_TOO_LONG
         - CAPTCHA_FAILED
         - CAPTCHA_REQUIRED
+        - NAME_TOO_LONG
 
     Error:
       type: object

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"unicode/utf8"
 
 	"go-service-template/internal/errorz"
 	"go-service-template/internal/transport/http/middleware"
@@ -29,6 +30,14 @@ func (h *UserHandler) UpdateUserSettings(ctx context.Context, req v1.UpdateUserS
 			// explicit null / empty → clear
 			displayName = nil
 		} else {
+			if utf8.RuneCountInString(dn) > maxDisplayNameRunes {
+				return v1.UpdateUserSettings400JSONResponse{
+					BadRequestJSONResponse: v1.BadRequestJSONResponse{
+						Code:    v1.NAMETOOLONG,
+						Message: "display_name must not exceed 32 characters",
+					},
+				}, nil
+			}
 			displayName = &dn
 		}
 	}

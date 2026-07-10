@@ -14,4 +14,5 @@ var (
 	ErrCannotBlockSelf    = errors.New("cannot block yourself")
 	ErrInvalidTelegramID  = errors.New("invalid telegram ID")
 	ErrTelegramIDTaken    = errors.New("telegram ID already linked to another account")
+	ErrNameTooLong        = errors.New("name exceeds maximum allowed length")
 )
