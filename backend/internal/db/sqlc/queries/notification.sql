@@ -8,3 +8,8 @@ DO UPDATE SET chat_ref = EXCLUDED.chat_ref, message_ref = EXCLUDED.message_ref, 
 SELECT provider, chat_ref, message_ref
 FROM notification_refs
 WHERE kind = $1 AND event_id = $2;
+
+-- name: GetNotificationRefByMessage :one
+SELECT kind, event_id FROM notification_refs
+WHERE provider = $1 AND message_ref = $2
+LIMIT 1;

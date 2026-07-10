@@ -230,8 +230,8 @@ SELECT EXISTS(
 ) AS taken;
 
 -- name: GetUserByTelegramID :one
-SELECT 
-    u.*, 
+SELECT
+    u.*,
     COALESCE(b.amount, 0)::int AS balance,
     COALESCE((
         SELECT AVG(EXTRACT(EPOCH FROM (h.accepted_at - h.created_at)))
@@ -246,6 +246,24 @@ SELECT
 FROM users u
 LEFT JOIN balances b ON b.user_id = u.id
 WHERE u.telegram_id = $1;
+
+-- name: GetUserByMatrixID :one
+SELECT
+    u.*,
+    COALESCE(b.amount, 0)::int AS balance,
+    COALESCE((
+        SELECT AVG(EXTRACT(EPOCH FROM (h.accepted_at - h.created_at)))
+        FROM (
+            SELECT accepted_at, created_at
+            FROM hugs
+            WHERE receiver_id = u.id AND status = 'completed'
+            ORDER BY created_at DESC
+            LIMIT 30
+        ) h
+    ), -1)::float AS avg_response_time
+FROM users u
+LEFT JOIN balances b ON b.user_id = u.id
+WHERE u.matrix_id = $1;
 
 -- name: UpdateUserPassword :exec
 UPDATE users

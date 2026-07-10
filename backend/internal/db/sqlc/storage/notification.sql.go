@@ -11,6 +11,29 @@ import (
 	"github.com/google/uuid"
 )
 
+const getNotificationRefByMessage = `-- name: GetNotificationRefByMessage :one
+SELECT kind, event_id FROM notification_refs
+WHERE provider = $1 AND message_ref = $2
+LIMIT 1
+`
+
+type GetNotificationRefByMessageParams struct {
+	Provider   string
+	MessageRef string
+}
+
+type GetNotificationRefByMessageRow struct {
+	Kind    string
+	EventID uuid.UUID
+}
+
+func (q *Queries) GetNotificationRefByMessage(ctx context.Context, arg GetNotificationRefByMessageParams) (GetNotificationRefByMessageRow, error) {
+	row := q.db.QueryRow(ctx, getNotificationRefByMessage, arg.Provider, arg.MessageRef)
+	var i GetNotificationRefByMessageRow
+	err := row.Scan(&i.Kind, &i.EventID)
+	return i, err
+}
+
 const getNotificationRefs = `-- name: GetNotificationRefs :many
 SELECT provider, chat_ref, message_ref
 FROM notification_refs

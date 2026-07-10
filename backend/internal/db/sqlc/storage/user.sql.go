@@ -763,9 +763,89 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (GetUserByIDRow
 	return i, err
 }
 
+const getUserByMatrixID = `-- name: GetUserByMatrixID :one
+SELECT
+    u.id, u.username, u.password, u.role, u.gender, u.banned_at, u.hug_slots, u.created_at, u.display_name, u.telegram_id, u.tag, u.special_tag, u.captcha_cooldown_until, u.captcha_type, u.promoted_until, u.promotion_message, u.promotion_bid, u.vip_remaining_seconds, u.vip_cooldown_until, u.telegram_blocked_at, u.daily_reminder_sent_at, u.matrix_id, u.matrix_room_id,
+    COALESCE(b.amount, 0)::int AS balance,
+    COALESCE((
+        SELECT AVG(EXTRACT(EPOCH FROM (h.accepted_at - h.created_at)))
+        FROM (
+            SELECT accepted_at, created_at
+            FROM hugs
+            WHERE receiver_id = u.id AND status = 'completed'
+            ORDER BY created_at DESC
+            LIMIT 30
+        ) h
+    ), -1)::float AS avg_response_time
+FROM users u
+LEFT JOIN balances b ON b.user_id = u.id
+WHERE u.matrix_id = $1
+`
+
+type GetUserByMatrixIDRow struct {
+	ID                   uuid.UUID
+	Username             string
+	Password             string
+	Role                 string
+	Gender               pgtype.Text
+	BannedAt             pgtype.Timestamptz
+	HugSlots             int32
+	CreatedAt            pgtype.Timestamptz
+	DisplayName          pgtype.Text
+	TelegramID           pgtype.Int8
+	Tag                  pgtype.Text
+	SpecialTag           pgtype.Text
+	CaptchaCooldownUntil pgtype.Timestamptz
+	CaptchaType          string
+	PromotedUntil        pgtype.Timestamptz
+	PromotionMessage     pgtype.Text
+	PromotionBid         int32
+	VipRemainingSeconds  int32
+	VipCooldownUntil     pgtype.Timestamptz
+	TelegramBlockedAt    pgtype.Timestamptz
+	DailyReminderSentAt  pgtype.Timestamptz
+	MatrixID             pgtype.Text
+	MatrixRoomID         pgtype.Text
+	Balance              int32
+	AvgResponseTime      float64
+}
+
+func (q *Queries) GetUserByMatrixID(ctx context.Context, matrixID pgtype.Text) (GetUserByMatrixIDRow, error) {
+	row := q.db.QueryRow(ctx, getUserByMatrixID, matrixID)
+	var i GetUserByMatrixIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Password,
+		&i.Role,
+		&i.Gender,
+		&i.BannedAt,
+		&i.HugSlots,
+		&i.CreatedAt,
+		&i.DisplayName,
+		&i.TelegramID,
+		&i.Tag,
+		&i.SpecialTag,
+		&i.CaptchaCooldownUntil,
+		&i.CaptchaType,
+		&i.PromotedUntil,
+		&i.PromotionMessage,
+		&i.PromotionBid,
+		&i.VipRemainingSeconds,
+		&i.VipCooldownUntil,
+		&i.TelegramBlockedAt,
+		&i.DailyReminderSentAt,
+		&i.MatrixID,
+		&i.MatrixRoomID,
+		&i.Balance,
+		&i.AvgResponseTime,
+	)
+	return i, err
+}
+
 const getUserByTelegramID = `-- name: GetUserByTelegramID :one
-SELECT 
-    u.id, u.username, u.password, u.role, u.gender, u.banned_at, u.hug_slots, u.created_at, u.display_name, u.telegram_id, u.tag, u.special_tag, u.captcha_cooldown_until, u.captcha_type, u.promoted_until, u.promotion_message, u.promotion_bid, u.vip_remaining_seconds, u.vip_cooldown_until, u.telegram_blocked_at, u.daily_reminder_sent_at, u.matrix_id, u.matrix_room_id, 
+SELECT
+    u.id, u.username, u.password, u.role, u.gender, u.banned_at, u.hug_slots, u.created_at, u.display_name, u.telegram_id, u.tag, u.special_tag, u.captcha_cooldown_until, u.captcha_type, u.promoted_until, u.promotion_message, u.promotion_bid, u.vip_remaining_seconds, u.vip_cooldown_until, u.telegram_blocked_at, u.daily_reminder_sent_at, u.matrix_id, u.matrix_room_id,
     COALESCE(b.amount, 0)::int AS balance,
     COALESCE((
         SELECT AVG(EXTRACT(EPOCH FROM (h.accepted_at - h.created_at)))
