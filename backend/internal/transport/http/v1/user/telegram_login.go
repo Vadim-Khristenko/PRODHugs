@@ -2,8 +2,11 @@ package user
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"go-service-template/internal/errorz"
+	userService "go-service-template/internal/service/user"
 	"go-service-template/internal/telegram"
 	v1 "go-service-template/internal/transport/http/v1"
 )
@@ -107,4 +110,64 @@ func (h *UserHandler) PollTelegramLogin(ctx context.Context, req v1.PollTelegram
 			},
 		}, nil
 	}
+}
+
+// TelegramWidgetLogin verifies a Telegram Login Widget payload and logs the
+// user in, minting access + refresh tokens on success.
+func (h *UserHandler) TelegramWidgetLogin(ctx context.Context, req v1.TelegramWidgetLoginRequestObject) (v1.TelegramWidgetLoginResponseObject, error) {
+	d := userService.TelegramWidgetData{
+		ID:        req.Body.Id,
+		FirstName: req.Body.FirstName,
+		AuthDate:  req.Body.AuthDate,
+		Hash:      req.Body.Hash,
+	}
+	if req.Body.LastName != nil {
+		d.LastName = *req.Body.LastName
+	}
+	if req.Body.Username != nil {
+		d.Username = *req.Body.Username
+	}
+	if req.Body.PhotoUrl != nil {
+		d.PhotoURL = *req.Body.PhotoUrl
+	}
+
+	u, err := h.svc.LoginViaTelegramWidget(ctx, d)
+	if err != nil {
+		if errors.Is(err, errorz.ErrTelegramLoginFailed) || errors.Is(err, errorz.ErrUserBanned) {
+			return v1.TelegramWidgetLogin403JSONResponse{
+				ForbiddenJSONResponse: v1.ForbiddenJSONResponse{
+					Code:    v1.TELEGRAMLOGINFAILED,
+					Message: "Telegram widget verification failed",
+				},
+			}, nil
+		}
+		return nil, fmt.Errorf("telegram widget login: %w", err)
+	}
+
+	accessToken, _, err := h.jwtManager.GenerateAccessToken(u.ID, u.Role)
+	if err != nil {
+		return nil, fmt.Errorf("generate access token: %w", err)
+	}
+
+	refreshToken, jti, expUnix, err := h.jwtManager.GenerateRefreshToken(u.ID)
+	if err != nil {
+		return nil, fmt.Errorf("generate refresh token: %w", err)
+	}
+
+	if err := h.svc.SaveRefreshToken(ctx, jti, u.ID, expUnix); err != nil {
+		return nil, fmt.Errorf("persist refresh token: %w", err)
+	}
+
+	cookie := makeRefreshCookie(refreshToken, h.jwtManager.RefreshTokenDuration(), h.cookieSecure)
+	cookieStr := cookie.String()
+
+	return v1.TelegramWidgetLogin200JSONResponse{
+		Body: v1.AuthResponse{
+			User:  toV1User(u),
+			Token: accessToken,
+		},
+		Headers: v1.TelegramWidgetLogin200ResponseHeaders{
+			SetCookie: &cookieStr,
+		},
+	}, nil
 }

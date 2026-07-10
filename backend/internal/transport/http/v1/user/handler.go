@@ -22,6 +22,7 @@ type service interface {
 	GenerateLinkToken(ctx context.Context, userID uuid.UUID) (string, string, error)
 	UnlinkTelegram(ctx context.Context, userID uuid.UUID) (*models.User, error)
 	GenerateMatrixLinkToken(ctx context.Context, userID uuid.UUID) (string, string, string, error)
+	LoginViaTelegramWidget(ctx context.Context, d userService.TelegramWidgetData) (*models.User, error)
 	UnlinkMatrix(ctx context.Context, userID uuid.UUID) (*models.User, error)
 	SaveRefreshToken(ctx context.Context, jti string, userID uuid.UUID, expiresAtUnix int64) error
 	IsRefreshTokenActive(ctx context.Context, jti string) (bool, error)

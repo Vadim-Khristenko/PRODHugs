@@ -140,6 +140,39 @@ components:
         token: { type: string }
         user : { $ref: '#/components/schemas/User' }
 
+    TelegramWidgetLoginRequest:
+      type: object
+      required:
+        - id
+        - first_name
+        - auth_date
+        - hash
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Telegram user ID
+        first_name:
+          type: string
+          description: User's first name
+        last_name:
+          type: string
+          description: User's last name (optional)
+        username:
+          type: string
+          description: Telegram username (optional)
+        photo_url:
+          type: string
+          description: URL of the user's profile photo (optional)
+        auth_date:
+          type: integer
+          format: int64
+          description: Unix time when the authorization was issued
+        hash:
+          type: string
+          description: HMAC-SHA256 signature of the payload
+      additionalProperties: false
+
     HugType:
       type: string
       enum:
@@ -1158,6 +1191,35 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+
+  /auth/telegram/widget:
+    post:
+      summary: Log in via a Telegram Login Widget payload
+      operationId: telegramWidgetLogin
+      description: >
+        Verifies a Telegram Login Widget payload (HMAC signature and freshness)
+        against the bot token and logs the user in, auto-registering if needed.
+        An optional alternative to the bot-based Telegram login flow.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TelegramWidgetLoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          headers:
+            Set-Cookie:
+              description: Refresh token cookie
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 
   /users/me:
     get:
