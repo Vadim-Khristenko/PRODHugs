@@ -25,6 +25,13 @@ type botUserRepo interface {
 	IsMatrixIDTaken(ctx context.Context, matrixID string, excludeUserID uuid.UUID) (bool, error)
 	SetMatrixLink(ctx context.Context, userID uuid.UUID, matrixID, roomID string) error
 	GetByMatrixID(ctx context.Context, matrixID string) (*models.User, error)
+	GetByUsername(ctx context.Context, username string) (*models.User, error)
+}
+
+// adminService is the admin surface backed by the user service. AdminUpdateBalance
+// SETS the target's coin balance to an absolute amount (mirroring the admin panel).
+type adminService interface {
+	AdminUpdateBalance(ctx context.Context, userID uuid.UUID, amount int32) (*models.Balance, error)
 }
 
 // hugService is the slice of the hug service the Matrix bot consumes for
@@ -36,6 +43,7 @@ type hugService interface {
 	GetHugHistory(ctx context.Context, userID uuid.UUID, limit, offset int32) ([]*models.HugFeedItem, error)
 	GetHugActivity(ctx context.Context) ([]*models.HugActivityItem, error)
 	ClaimDailyReward(ctx context.Context, userID uuid.UUID) (amount, streakDays, newBalance int32, alreadyClaimed bool, err error)
+	GetBalance(ctx context.Context, userID uuid.UUID) (*models.Balance, error)
 }
 
 // matrixLoginService handles the auth/registration logic for Matrix bot-login.
@@ -57,6 +65,7 @@ type Bot struct {
 	provider   *Provider
 	userRepo   botUserRepo
 	hugSvc     hugService
+	adminSvc   adminService
 	refs       refStore
 	linkStore  *LinkStore
 	loginStore *LoginStore
@@ -72,7 +81,7 @@ func (b *Bot) SetLoginStore(store *LoginStore, svc matrixLoginService) {
 	b.loginSvc = svc
 }
 
-func NewBot(provider *Provider, userRepo botUserRepo, hugSvc hugService, refs refStore, linkStore *LinkStore, logger *slog.Logger) *Bot {
+func NewBot(provider *Provider, userRepo botUserRepo, hugSvc hugService, adminSvc adminService, refs refStore, linkStore *LinkStore, logger *slog.Logger) *Bot {
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -80,6 +89,7 @@ func NewBot(provider *Provider, userRepo botUserRepo, hugSvc hugService, refs re
 		provider:  provider,
 		userRepo:  userRepo,
 		hugSvc:    hugSvc,
+		adminSvc:  adminSvc,
 		refs:      refs,
 		linkStore: linkStore,
 		logger:    logger,
@@ -306,6 +316,10 @@ func (b *Bot) handleMessage(ctx context.Context, roomID, sender, body string) {
 		b.handleStats(ctx, roomID)
 	case "/daily":
 		b.handleDaily(ctx, roomID, sender)
+	case "/grant":
+		b.handleGrant(ctx, roomID, sender, fields)
+	case "/userinfo":
+		b.handleUserinfo(ctx, roomID, sender, fields)
 	}
 }
 
