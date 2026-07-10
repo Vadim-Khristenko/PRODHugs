@@ -5,38 +5,8 @@ import (
 	"log/slog"
 	"strconv"
 
-	"go-service-template/internal/notify/richtext"
-
 	"github.com/google/uuid"
 )
-
-// New re-exports a richtext builder so notify consumers build bodies without
-// a second import. Body := notify.New().Bold(name).Build().
-func New() *Builder { return &Builder{b: richtext.New()} }
-
-// Builder is a thin pass-through over richtext.Builder for the subset of
-// nodes notify consumers use when composing messages.
-type Builder struct{ b *richtext.Builder }
-
-func (b *Builder) Text(s string) *Builder             { b.b.Text(s); return b }
-func (b *Builder) Bold(s string) *Builder             { b.b.Bold(s); return b }
-func (b *Builder) Italic(s string) *Builder           { b.b.Italic(s); return b }
-func (b *Builder) Underline(s string) *Builder        { b.b.Underline(s); return b }
-func (b *Builder) Strike(s string) *Builder           { b.b.Strike(s); return b }
-func (b *Builder) Code(s string) *Builder             { b.b.Code(s); return b }
-func (b *Builder) Spoiler(s string) *Builder          { b.b.Spoiler(s); return b }
-func (b *Builder) Line() *Builder                     { b.b.Line(); return b }
-func (b *Builder) Quote(s string) *Builder            { b.b.Quote(s); return b }
-func (b *Builder) Link(l, h string) *Builder          { b.b.Link(l, h); return b }
-func (b *Builder) Mention(l, id string) *Builder      { b.b.Mention(l, id); return b }
-func (b *Builder) CodeBlock(c, lang string) *Builder  { b.b.CodeBlock(c, lang); return b }
-func (b *Builder) Heading(lvl int, s string) *Builder { b.b.Heading(lvl, s); return b }
-func (b *Builder) Build() richtext.Doc                { return b.b.Build() }
-
-// Render helpers expose the richtext renderers to providers.
-func RenderTelegram(d richtext.Doc) string   { return richtext.RenderTelegramHTML(d) }
-func RenderMatrixHTML(d richtext.Doc) string { return richtext.RenderMatrixHTML(d) }
-func RenderPlain(d richtext.Doc) string      { return richtext.RenderPlain(d) }
 
 // Router renders and delivers Messages across enabled providers.
 type Router struct {
@@ -72,15 +42,18 @@ func chatRefFor(name string, a Address) (string, bool) {
 	return "", false
 }
 
-// Dispatch renders msg and delivers it to every enabled provider the user
-// has linked, recording each SentRef under (kind, eventID). Fire-and-forget:
-// errors are logged, not returned.
-func (r *Router) Dispatch(ctx context.Context, userID uuid.UUID, kind string, eventID uuid.UUID, msg Message) {
+// deliver sends msg to every enabled provider the user has linked and returns
+// the resulting SentRefs. A blocked recipient is marked; other send errors are
+// logged. Refs with an empty MessageRef (message delivered but not
+// addressable for a later edit) are dropped so the store never holds a
+// non-editable ref. Fire-and-forget: nothing is returned to the caller.
+func (r *Router) deliver(ctx context.Context, userID uuid.UUID, msg Message) []SentRef {
 	a, err := r.addr.ResolveAddress(ctx, userID)
 	if err != nil {
 		r.logger.Error("notify: resolve address failed", "user_id", userID, "error", err)
-		return
+		return nil
 	}
+	var out []SentRef
 	for _, p := range r.providers {
 		if !p.Enabled() {
 			continue
@@ -92,16 +65,40 @@ func (r *Router) Dispatch(ctx context.Context, userID uuid.UUID, kind string, ev
 		ref, err := p.Send(ctx, chatRef, msg)
 		if err != nil {
 			if IsBlocked(err) {
-				if mErr := r.blocks.MarkTelegramBlocked(ctx, userID); mErr != nil {
-					r.logger.Error("notify: mark blocked failed", "user_id", userID, "error", mErr)
+				// The blocked signal is Telegram-specific today; only the
+				// Telegram provider maps to the telegram_blocked_at flag.
+				if p.Name() == "telegram" {
+					if mErr := r.blocks.MarkTelegramBlocked(ctx, userID); mErr != nil {
+						r.logger.Error("notify: mark blocked failed", "user_id", userID, "error", mErr)
+					}
 				}
 				continue
 			}
 			r.logger.Error("notify: send failed", "provider", p.Name(), "user_id", userID, "error", err)
 			continue
 		}
+		if ref.MessageRef == "" {
+			continue
+		}
+		out = append(out, ref)
+	}
+	return out
+}
+
+// Notify delivers a terminal message to the user without recording a ref.
+// Use for notifications that are never edited later (completion, decline,
+// cancellation notices).
+func (r *Router) Notify(ctx context.Context, userID uuid.UUID, msg Message) {
+	r.deliver(ctx, userID, msg)
+}
+
+// Dispatch delivers msg and records each SentRef under (kind, eventID) so the
+// message can be edited later via EditByEvent. Use for messages whose
+// originating event can change state (e.g. a hug suggestion).
+func (r *Router) Dispatch(ctx context.Context, userID uuid.UUID, kind string, eventID uuid.UUID, msg Message) {
+	for _, ref := range r.deliver(ctx, userID, msg) {
 		if err := r.refs.SaveRef(ctx, kind, eventID, ref); err != nil {
-			r.logger.Error("notify: save ref failed", "provider", p.Name(), "error", err)
+			r.logger.Error("notify: save ref failed", "provider", ref.Provider, "error", err)
 		}
 	}
 }

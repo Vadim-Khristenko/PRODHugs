@@ -84,8 +84,14 @@ func (n *Notifier) NotifyHugCompleted(ctx context.Context, giverID, receiverID, 
 		rb.Line().Line().Text("💬 ").Italic(*comment)
 	}
 
-	n.r.Dispatch(ctx, giverID, "hug_completed", hugID, Message{Body: gb.Build()})
-	n.r.Dispatch(ctx, receiverID, "hug_completed", hugID, Message{Body: rb.Build()})
+	// Completion notices are terminal — never edited — so they don't record a
+	// ref (both go to distinct users under the same hug id, which would
+	// otherwise collide on the ref key).
+	n.r.Notify(ctx, giverID, Message{Body: gb.Build()})
+	n.r.Notify(ctx, receiverID, Message{Body: rb.Build()})
+	// Update the original suggestion (shown to the receiver) to reflect that it
+	// was accepted, dropping the Accept/Decline buttons.
+	n.r.EditByEvent(ctx, "hug_suggestion", hugID, Message{Body: New().Text("🤗 Обнимашка принята ✅").Build()})
 }
 
 // NotifyHugDeclined notifies the giver that their hug was declined.
@@ -97,7 +103,8 @@ func (n *Notifier) NotifyHugDeclined(ctx context.Context, giverID, receiverID, h
 	}
 	verb := genderVerb(receiver.Gender, "отклонил", "отклонила", "отклонил(а)")
 	body := New().Text("😔 ").Bold(displayName(receiver)).Text(" " + verb + " объятие").Build()
-	n.r.Dispatch(ctx, giverID, "hug_declined", hugID, Message{Body: body})
+	n.r.Notify(ctx, giverID, Message{Body: body})
+	n.r.EditByEvent(ctx, "hug_suggestion", hugID, Message{Body: New().Text("🤗 Обнимашка отклонена ❌").Build()})
 }
 
 // NotifyHugCancelled notifies the receiver that the request was cancelled.
@@ -109,5 +116,6 @@ func (n *Notifier) NotifyHugCancelled(ctx context.Context, receiverID, giverID, 
 	}
 	verb := genderVerb(giver.Gender, "отменил", "отменила", "отменил(а)")
 	body := New().Text("❌ ").Bold(displayName(giver)).Text(" " + verb + " запрос на объятие").Build()
-	n.r.Dispatch(ctx, receiverID, "hug_cancelled", hugID, Message{Body: body})
+	n.r.Notify(ctx, receiverID, Message{Body: body})
+	n.r.EditByEvent(ctx, "hug_suggestion", hugID, Message{Body: New().Text("🤗 Запрос на обнимашку отменён ❌").Build()})
 }

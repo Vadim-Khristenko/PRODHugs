@@ -5,18 +5,17 @@ import (
 	"strings"
 )
 
-// tgEscape neutralises user text for Telegram's HTML/Rich parser. Telegram
+// tgReplacer neutralises user text for Telegram's HTML/Rich parser. Telegram
 // only accepts a small set of NAMED entities; we stick to the always-safe
-// four, which fully cover the HTML-significant characters.
-func tgEscape(s string) string {
-	r := strings.NewReplacer(
-		"&", "&amp;",
-		"<", "&lt;",
-		">", "&gt;",
-		"\"", "&quot;",
-	)
-	return r.Replace(s)
-}
+// four, which fully cover the HTML-significant characters. Built once.
+var tgReplacer = strings.NewReplacer(
+	"&", "&amp;",
+	"<", "&lt;",
+	">", "&gt;",
+	"\"", "&quot;",
+)
+
+func tgEscape(s string) string { return tgReplacer.Replace(s) }
 
 // RenderTelegramHTML renders a Doc to Telegram Rich HTML (the body of
 // InputRichMessage.html). See the new sendRichMessage tag set.

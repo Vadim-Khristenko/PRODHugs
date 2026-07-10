@@ -69,12 +69,17 @@ func (p *Provider) call(ctx context.Context, method string, payload any) (*apiRe
 	return &ar, nil
 }
 
-func parseMessageID(raw json.RawMessage) int64 {
+// parseMessageID extracts the message_id from a send result. ok is false when
+// the result is missing/malformed or the id is zero — the message was
+// delivered but is not addressable for a later edit.
+func parseMessageID(raw json.RawMessage) (int64, bool) {
 	var r struct {
 		MessageID int64 `json:"message_id"`
 	}
-	_ = json.Unmarshal(raw, &r)
-	return r.MessageID
+	if err := json.Unmarshal(raw, &r); err != nil || r.MessageID == 0 {
+		return 0, false
+	}
+	return r.MessageID, true
 }
 
 // isUnknownMethod reports whether the API response indicates the method itself
@@ -87,12 +92,15 @@ func isUnknownMethod(ar *apiResponse) bool {
 	return strings.Contains(d, "method not found") || strings.Contains(d, "method is not")
 }
 
+// sentRef builds the SentRef for a delivered message. If the message id can't
+// be determined, MessageRef is left empty so the Router does not record a
+// non-editable ref (the message was still delivered).
 func (p *Provider) sentRef(chatRef string, ar *apiResponse) notify.SentRef {
-	return notify.SentRef{
-		Provider:   "telegram",
-		ChatRef:    chatRef,
-		MessageRef: strconv.FormatInt(parseMessageID(ar.Result), 10),
+	ref := notify.SentRef{Provider: "telegram", ChatRef: chatRef}
+	if id, ok := parseMessageID(ar.Result); ok {
+		ref.MessageRef = strconv.FormatInt(id, 10)
 	}
+	return ref
 }
 
 // Send renders msg and delivers it to chatRef. Prefers sendRichMessage.
@@ -133,7 +141,11 @@ func (p *Provider) Send(ctx context.Context, chatRef string, msg notify.Message)
 		}
 	}
 
-	// Classic fallback: sendMessage with HTML parse mode.
+	// Classic fallback: sendMessage with HTML parse mode. Reuses the same
+	// rendered string, which is safe because notification templates use only
+	// nodes valid in classic HTML mode (bold/italic/underline/strike/code/
+	// link/blockquote/pre). Rich-only nodes (tg-spoiler, tg-emoji, headings)
+	// must not be used in notification bodies or this path would 400.
 	payload := map[string]any{"chat_id": chatID, "text": html, "parse_mode": "HTML"}
 	if kb != nil {
 		payload["reply_markup"] = kb
