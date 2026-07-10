@@ -24,6 +24,7 @@ type User struct {
 	Tag                  *string
 	SpecialTag           *string
 	TelegramID           *int64
+	MatrixID             *string
 	BannedAt             *time.Time
 	CreatedAt            *time.Time
 	CaptchaType          string

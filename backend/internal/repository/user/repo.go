@@ -41,6 +41,10 @@ func toModelUser(u storage.User) *models.User {
 	if u.TelegramID.Valid {
 		telegramID = &u.TelegramID.Int64
 	}
+	var matrixID *string
+	if u.MatrixID.Valid {
+		matrixID = &u.MatrixID.String
+	}
 	var tag *string
 	if u.Tag.Valid {
 		tag = &u.Tag.String
@@ -75,6 +79,7 @@ func toModelUser(u storage.User) *models.User {
 		Tag:                  tag,
 		SpecialTag:           specialTag,
 		TelegramID:           telegramID,
+		MatrixID:             matrixID,
 		BannedAt:             bannedAt,
 		CreatedAt:            createdAt,
 		CaptchaType:          u.CaptchaType,
@@ -107,6 +112,10 @@ func toModelUserFromByID(u storage.GetUserByIDRow) *models.User {
 	var telegramID *int64
 	if u.TelegramID.Valid {
 		telegramID = &u.TelegramID.Int64
+	}
+	var matrixID *string
+	if u.MatrixID.Valid {
+		matrixID = &u.MatrixID.String
 	}
 	var tag *string
 	if u.Tag.Valid {
@@ -147,6 +156,7 @@ func toModelUserFromByID(u storage.GetUserByIDRow) *models.User {
 		Tag:                  tag,
 		SpecialTag:           specialTag,
 		TelegramID:           telegramID,
+		MatrixID:             matrixID,
 		BannedAt:             bannedAt,
 		CreatedAt:            createdAt,
 		CaptchaType:          u.CaptchaType,
@@ -182,6 +192,10 @@ func toModelUserFromByUsername(u storage.GetUserByUsernameRow) *models.User {
 	if u.TelegramID.Valid {
 		telegramID = &u.TelegramID.Int64
 	}
+	var matrixID *string
+	if u.MatrixID.Valid {
+		matrixID = &u.MatrixID.String
+	}
 	var tag *string
 	if u.Tag.Valid {
 		tag = &u.Tag.String
@@ -221,6 +235,7 @@ func toModelUserFromByUsername(u storage.GetUserByUsernameRow) *models.User {
 		Tag:                  tag,
 		SpecialTag:           specialTag,
 		TelegramID:           telegramID,
+		MatrixID:             matrixID,
 		BannedAt:             bannedAt,
 		CreatedAt:            createdAt,
 		CaptchaType:          u.CaptchaType,
@@ -256,6 +271,10 @@ func toModelUserFromByTelegramID(u storage.GetUserByTelegramIDRow) *models.User 
 	if u.TelegramID.Valid {
 		telegramID = &u.TelegramID.Int64
 	}
+	var matrixID *string
+	if u.MatrixID.Valid {
+		matrixID = &u.MatrixID.String
+	}
 	var tag *string
 	if u.Tag.Valid {
 		tag = &u.Tag.String
@@ -295,6 +314,7 @@ func toModelUserFromByTelegramID(u storage.GetUserByTelegramIDRow) *models.User 
 		Tag:                  tag,
 		SpecialTag:           specialTag,
 		TelegramID:           telegramID,
+		MatrixID:             matrixID,
 		BannedAt:             bannedAt,
 		CreatedAt:            createdAt,
 		CaptchaType:          u.CaptchaType,

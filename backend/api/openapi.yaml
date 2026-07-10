@@ -50,6 +50,7 @@ components:
         - CAPTCHA_FAILED
         - CAPTCHA_REQUIRED
         - NAME_TOO_LONG
+        - MATRIX_LINKING_UNAVAILABLE
 
     Error:
       type: object
@@ -87,6 +88,9 @@ components:
         telegram_id:
           type: integer
           format: int64
+          nullable: true
+        matrix_id:
+          type: string
           nullable: true
         tag:
           type: string
@@ -1283,6 +1287,52 @@ paths:
       responses:
         '200':
           description: Telegram unlinked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /users/me/matrix/link-token:
+    post:
+      summary: Generate a token for Matrix account linking
+      operationId: createMatrixLinkToken
+      security:
+        - BearerAuth: ["user", "admin"]
+      responses:
+        '200':
+          description: Link token created
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - token
+                  - command
+                  - bot_user_id
+                properties:
+                  token: { type: string }
+                  command: { type: string }
+                  bot_user_id: { type: string }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          description: Matrix linking not configured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /users/me/matrix:
+    delete:
+      summary: Unlink Matrix account
+      operationId: unlinkMatrix
+      security:
+        - BearerAuth: ["user", "admin"]
+      responses:
+        '200':
+          description: Matrix unlinked
           content:
             application/json:
               schema:

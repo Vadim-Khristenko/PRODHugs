@@ -21,6 +21,8 @@ type service interface {
 	ChangePassword(ctx context.Context, id uuid.UUID, oldPassword, newPassword string) error
 	GenerateLinkToken(ctx context.Context, userID uuid.UUID) (string, string, error)
 	UnlinkTelegram(ctx context.Context, userID uuid.UUID) (*models.User, error)
+	GenerateMatrixLinkToken(ctx context.Context, userID uuid.UUID) (string, string, string, error)
+	UnlinkMatrix(ctx context.Context, userID uuid.UUID) (*models.User, error)
 	SaveRefreshToken(ctx context.Context, jti string, userID uuid.UUID, expiresAtUnix int64) error
 	IsRefreshTokenActive(ctx context.Context, jti string) (bool, error)
 	RevokeRefreshToken(ctx context.Context, jti string) error
@@ -67,6 +69,7 @@ func toV1User(u *models.User) v1.User {
 		Tag:                  u.Tag,
 		SpecialTag:           u.SpecialTag,
 		TelegramId:           u.TelegramID,
+		MatrixId:             u.MatrixID,
 		CaptchaType:          v1.CaptchaType(u.CaptchaType),
 		CaptchaCooldownUntil: u.CaptchaCooldownUntil,
 		PromotedUntil:        u.PromotedUntil,
