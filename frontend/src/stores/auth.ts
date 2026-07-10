@@ -15,6 +15,7 @@ export interface User {
   tag?: string | null
   special_tag?: string | null
   telegram_id?: number | null
+  matrix_id?: string | null
   captcha_type: 'none' | 'sudoku' | 'casino'
   captcha_cooldown_until?: string | null
   promoted_until?: string | null

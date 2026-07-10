@@ -41,6 +41,15 @@ const telegramPolling = ref(false)
 const telegramError = ref('')
 let pollTimer: ReturnType<typeof setInterval> | null = null
 
+// ── Matrix ──
+const matrixLinked = ref(auth.user?.matrix_id != null)
+const matrixLoading = ref(false)
+const matrixPolling = ref(false)
+const matrixError = ref('')
+const matrixCommand = ref('')
+const matrixBotId = ref('')
+let matrixPollTimer: ReturnType<typeof setInterval> | null = null
+
 // ── Blocked users ──
 const blockedUsers = ref<BlockedUser[]>([])
 const loadingBlocked = ref(false)
@@ -79,6 +88,9 @@ watch(open, (isOpen) => {
     telegramLinked.value = auth.user?.telegram_id != null
     telegramError.value = ''
     stopPolling()
+    matrixLinked.value = auth.user?.matrix_id != null
+    matrixError.value = ''
+    stopMatrixPolling()
     resetPasswordForm()
     fetchBlocked()
   }
@@ -167,7 +179,89 @@ async function unlinkTelegram() {
   }
 }
 
-onUnmounted(() => stopPolling())
+function stopMatrixPolling() {
+  if (matrixPollTimer) {
+    clearInterval(matrixPollTimer)
+    matrixPollTimer = null
+  }
+  matrixPolling.value = false
+}
+
+async function linkMatrix() {
+  matrixError.value = ''
+  matrixLoading.value = true
+  try {
+    const res = await usersApi.createMatrixLinkToken()
+    matrixCommand.value = res.data.command
+    matrixBotId.value = res.data.bot_user_id
+    matrixLoading.value = false
+    // Start polling for link confirmation
+    matrixPolling.value = true
+    let attempts = 0
+    matrixPollTimer = setInterval(async () => {
+      attempts++
+      if (attempts > 60) {
+        stopMatrixPolling()
+        matrixError.value = 'Время ожидания истекло. Попробуйте снова.'
+        return
+      }
+      try {
+        const me = await authApi.me()
+        if (me.data.matrix_id != null) {
+          auth.user = me.data
+          localStorage.setItem('user', JSON.stringify(me.data))
+          matrixLinked.value = true
+          stopMatrixPolling()
+          matrixCommand.value = ''
+          matrixBotId.value = ''
+          toast.success('Matrix привязан')
+        }
+      } catch {
+        // ignore polling errors
+      }
+    }, 2000)
+  } catch (e: unknown) {
+    const err = e as { response?: { status?: number; data?: { message?: string } } }
+    if (err.response?.status === 503) {
+      matrixError.value = 'Matrix-привязка недоступна на сервере'
+    } else {
+      const parsed = parseBackendError(e)
+      matrixError.value = parsed.generalError ?? 'Ошибка'
+    }
+    matrixLoading.value = false
+  }
+}
+
+async function unlinkMatrix() {
+  matrixError.value = ''
+  matrixLoading.value = true
+  try {
+    const res = await usersApi.unlinkMatrix()
+    auth.user = res.data
+    localStorage.setItem('user', JSON.stringify(res.data))
+    matrixLinked.value = false
+    toast.success('Matrix отвязан')
+  } catch (e) {
+    const parsed = parseBackendError(e)
+    matrixError.value = parsed.generalError ?? 'Ошибка'
+  } finally {
+    matrixLoading.value = false
+  }
+}
+
+async function copyMatrixCommand() {
+  try {
+    await navigator.clipboard.writeText(matrixCommand.value)
+    toast.success('Команда скопирована')
+  } catch {
+    toast.error('Не удалось скопировать')
+  }
+}
+
+onUnmounted(() => {
+  stopPolling()
+  stopMatrixPolling()
+})
 
 // ── Password ──
 const oldPassword = ref('')
@@ -347,6 +441,87 @@ async function savePassword() {
 
           <p v-if="telegramError" class="text-xs text-destructive">
             {{ telegramError }}
+          </p>
+        </div>
+
+        <Separator />
+
+        <!-- Matrix section -->
+        <div class="space-y-3">
+          <Label class="text-sm font-medium">Matrix уведомления</Label>
+
+          <!-- Linked state -->
+          <div v-if="matrixLinked" class="space-y-2">
+            <div
+              class="flex items-center gap-2 rounded-md border border-green-800/40 bg-green-950/30 px-3 py-2 text-sm"
+            >
+              <Send class="size-4 text-green-400" />
+              <span>Matrix привязан</span>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              class="rounded-[21px]"
+              :disabled="matrixLoading"
+              @click="unlinkMatrix"
+            >
+              {{ matrixLoading ? 'Отвязка...' : 'Отвязать Matrix' }}
+            </Button>
+          </div>
+
+          <!-- Polling / command shown state -->
+          <div v-else-if="matrixPolling" class="space-y-2">
+            <p class="text-[11px] text-muted-foreground">
+              Откройте личный чат с ботом в Matrix и отправьте эту команду.
+            </p>
+            <p class="text-xs text-muted-foreground">
+              Бот:
+              <span class="font-mono text-foreground">{{ matrixBotId }}</span>
+            </p>
+            <div class="flex items-center gap-2">
+              <code
+                class="flex-1 truncate rounded-md border bg-muted px-3 py-2 font-mono text-sm"
+              >{{ matrixCommand }}</code>
+              <Button
+                variant="outline"
+                size="sm"
+                class="shrink-0 rounded-[21px]"
+                @click="copyMatrixCommand"
+              >
+                Копировать
+              </Button>
+            </div>
+            <div class="flex items-center gap-2 text-xs text-muted-foreground">
+              <span class="inline-block size-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              Ожидание привязки
+            </div>
+            <button
+              type="button"
+              class="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+              @click="stopMatrixPolling(); matrixError = ''; matrixCommand = ''; matrixBotId = ''"
+            >
+              Отмена
+            </button>
+          </div>
+
+          <!-- Idle state -->
+          <div v-else class="space-y-2">
+            <p class="text-[11px] text-muted-foreground">
+              Привяжите Matrix, чтобы получать уведомления об объятиях.
+            </p>
+            <Button
+              variant="yellow"
+              size="sm"
+              class="rounded-[21px]"
+              :disabled="matrixLoading"
+              @click="linkMatrix"
+            >
+              {{ matrixLoading ? 'Загрузка...' : 'Привязать Matrix' }}
+            </Button>
+          </div>
+
+          <p v-if="matrixError" class="text-xs text-destructive">
+            {{ matrixError }}
           </p>
         </div>
 

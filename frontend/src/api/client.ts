@@ -211,6 +211,9 @@ export const usersApi = {
   createTelegramLinkToken: () =>
     api.post<{ token: string; bot_url: string }>('/users/me/telegram/link-token'),
   unlinkTelegram: () => api.delete('/users/me/telegram'),
+  createMatrixLinkToken: () =>
+    api.post<{ token: string; command: string; bot_user_id: string }>('/users/me/matrix/link-token'),
+  unlinkMatrix: () => api.delete<User>('/users/me/matrix'),
   changePassword: (oldPassword: string, newPassword: string) =>
     api.put('/users/me/password', { old_password: oldPassword, new_password: newPassword }),
   blockUser: (userId: string) => api.post(`/users/${userId}/block`),
