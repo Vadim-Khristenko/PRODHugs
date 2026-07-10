@@ -334,7 +334,7 @@ onUnmounted(() => {
             <div class="min-w-0 flex-1 text-sm">
               <RouterLink
                 :to="profileLink(item.giver_username, item.giver_id)"
-                class="font-medium hover:underline"
+                class="truncate font-medium hover:underline"
                 @click.stop
               >{{ item.giver_display_name || item.giver_username }}</RouterLink>
               <span class="mx-1 text-muted-foreground">{{
@@ -342,7 +342,7 @@ onUnmounted(() => {
               }}</span>
               <RouterLink
                 :to="profileLink(item.receiver_username, item.receiver_id)"
-                class="font-medium hover:underline"
+                class="truncate font-medium hover:underline"
                 @click.stop
               >{{ item.receiver_display_name || item.receiver_username }}</RouterLink>
               <MessageSquare

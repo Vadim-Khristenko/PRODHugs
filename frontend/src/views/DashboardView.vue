@@ -191,7 +191,7 @@ const rankInfo = () => getRankProgress(profile.value?.total_hugs ?? 0)
   <div class="mx-auto max-w-4xl space-y-6">
     <div>
       <h1 class="text-2xl font-semibold tracking-tight">
-        Привет, <span class="text-prod-yellow">{{ auth.user?.display_name || auth.user?.username }}</span>
+        Привет, <span class="inline-block max-w-full truncate align-bottom text-prod-yellow">{{ auth.user?.display_name || auth.user?.username }}</span>
       </h1>
       <p class="text-muted-foreground">Твоя панель управления обнимашками</p>
     </div>

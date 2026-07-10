@@ -242,14 +242,14 @@ onMounted(() => {
                 <div class="min-w-0 flex-1 text-sm">
                   <RouterLink
                     :to="profileLink(entry.user_a_username, entry.user_a_id)"
-                    class="font-medium hover:underline"
+                    class="truncate font-medium hover:underline"
                   >
                     {{ displayName(entry.user_a_username, entry.user_a_display_name) }}
                   </RouterLink>
                   <span class="mx-1.5 text-muted-foreground">&amp;</span>
                   <RouterLink
                     :to="profileLink(entry.user_b_username, entry.user_b_id)"
-                    class="font-medium hover:underline"
+                    class="truncate font-medium hover:underline"
                   >
                     {{ displayName(entry.user_b_username, entry.user_b_display_name) }}
                   </RouterLink>

@@ -88,7 +88,7 @@ onMounted(() => {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" class="w-48">
-          <DropdownMenuLabel>{{ auth.user?.display_name || auth.user?.username }}</DropdownMenuLabel>
+          <DropdownMenuLabel class="truncate">{{ auth.user?.display_name || auth.user?.username }}</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem @click="settingsOpen = true">
             <Settings class="size-4" />

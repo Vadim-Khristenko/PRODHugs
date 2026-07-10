@@ -296,11 +296,11 @@ watch(routeKey, (next, prev) => {
                 {{ (profile.display_name || profile.username).slice(0, 2).toUpperCase() }}
               </AvatarFallback>
             </Avatar>
-            <div class="flex-1 space-y-1.5">
-              <h1 class="text-lg font-semibold sm:text-xl">
+            <div class="min-w-0 flex-1 space-y-1.5">
+              <h1 class="text-lg font-semibold break-words sm:text-xl">
                 {{ profile.display_name || profile.username }}
               </h1>
-              <p v-if="profile.display_name" class="text-xs text-muted-foreground">
+              <p v-if="profile.display_name" class="truncate text-xs text-muted-foreground">
                 @{{ profile.username }}
               </p>
               <div class="flex items-center justify-center gap-2 sm:justify-start">

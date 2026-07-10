@@ -102,7 +102,7 @@ async function buySlot() {
             </span>
             <RouterLink
               :to="profileLink(slot.hug.receiver_username, slot.hug.receiver_id)"
-              class="font-medium hover:underline"
+              class="truncate font-medium hover:underline"
             >
               {{ slot.hug.receiver_display_name || slot.hug.receiver_username }}
             </RouterLink>

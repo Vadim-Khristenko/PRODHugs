@@ -126,7 +126,7 @@ function onExplosionDone() {
           </Avatar>
           <div class="min-w-0 flex-1">
             <div class="text-sm">
-              <RouterLink :to="profileLink(item.giver_username, item.giver_id)" class="font-medium hover:underline">
+              <RouterLink :to="profileLink(item.giver_username, item.giver_id)" class="truncate font-medium hover:underline">
                 {{ item.giver_display_name || item.giver_username }}
               </RouterLink>
               <span class="text-muted-foreground">

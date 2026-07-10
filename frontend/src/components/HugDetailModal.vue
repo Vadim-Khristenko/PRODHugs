@@ -91,21 +91,21 @@ function statusLabel(status: string): string {
       <div v-else-if="detail" class="min-w-0 space-y-4">
         <!-- Participants -->
         <div class="space-y-2">
-          <div class="flex items-center justify-between text-sm">
+          <div class="flex min-w-0 items-center justify-between text-sm">
             <span class="text-muted-foreground">Отправитель</span>
             <RouterLink
               :to="profileLink(detail.giver_username, detail.giver_id)"
-              class="font-medium hover:underline"
+              class="min-w-0 truncate font-medium hover:underline"
               @click="open = false"
             >
               {{ detail.giver_display_name || detail.giver_username }}
             </RouterLink>
           </div>
-          <div class="flex items-center justify-between text-sm">
+          <div class="flex min-w-0 items-center justify-between text-sm">
             <span class="text-muted-foreground">Получатель</span>
             <RouterLink
               :to="profileLink(detail.receiver_username, detail.receiver_id)"
-              class="font-medium hover:underline"
+              class="min-w-0 truncate font-medium hover:underline"
               @click="open = false"
             >
               {{ detail.receiver_display_name || detail.receiver_username }}
