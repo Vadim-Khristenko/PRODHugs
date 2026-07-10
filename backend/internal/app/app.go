@@ -147,6 +147,8 @@ func New(ctx context.Context, cfg *config.Config, l *slog.Logger) (*App, error) 
 	// Link stores for the user service (generating link tokens/commands).
 	userService.SetTelegramLinkStore(tgLinkStore, a.cfg.Telegram.BotUsername)
 	userService.SetMatrixLinkStore(matrixLinkStore, a.cfg.Matrix.UserID)
+	// Bot token used to verify Telegram Login Widget (OAuth) payloads.
+	userService.SetTelegramBotToken(a.cfg.Telegram.BotToken)
 
 	// Telegram login: wire login store + service into bot
 	tgBot.SetLoginStore(tgLoginStore, userService)
