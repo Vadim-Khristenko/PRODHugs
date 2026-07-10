@@ -61,7 +61,7 @@ func (p *Provider) call(ctx context.Context, method string, payload any) (*apiRe
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	var ar apiResponse
 	if err := json.NewDecoder(resp.Body).Decode(&ar); err != nil {
 		return nil, err

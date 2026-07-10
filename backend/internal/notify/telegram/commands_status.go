@@ -49,9 +49,8 @@ func (b *Bot) handleMe(ctx context.Context, msg *tgmodels.Message) {
 	if len(hugs) > 0 {
 		sb.WriteString("\n<b>Последние обнимашки:</b>\n")
 		for _, h := range hugs {
-			direction := "→"
-			otherName := h.ReceiverUsername
-			otherDN := h.ReceiverDisplayName
+			var direction, otherName string
+			var otherDN *string
 			if h.GiverID == user.ID {
 				direction = "→"
 				otherName = h.ReceiverUsername

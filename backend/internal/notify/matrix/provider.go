@@ -104,7 +104,7 @@ func (p *Provider) putEvent(ctx context.Context, roomID string, content map[stri
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	var sr sendResponse
 	if err := json.NewDecoder(resp.Body).Decode(&sr); err != nil {
 		return "", err
