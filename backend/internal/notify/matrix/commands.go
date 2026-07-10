@@ -46,6 +46,7 @@ func (b *Bot) handleHelp(ctx context.Context, roomID string) {
 		Line().
 		Bold("/help").Text(" — эта справка").Line().
 		Bold("/link <токен>").Text(" — привязать Matrix к аккаунту").Line().
+		Bold("/login <токен>").Text(" — войти на сайт через Matrix").Line().
 		Bold("/me").Text(" — профиль и последние обнимашки").Line().
 		Bold("/stats").Text(" — активность за 24 часа").Line().
 		Bold("/daily").Text(" — забрать ежедневную награду").Line().

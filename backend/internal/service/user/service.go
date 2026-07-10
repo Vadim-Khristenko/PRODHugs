@@ -21,6 +21,8 @@ type repo interface {
 	GetTelegramID(ctx context.Context, userID uuid.UUID) (*int64, error)
 	SetTelegramID(ctx context.Context, userID uuid.UUID, telegramID int64) (*models.User, error)
 	ClearTelegramID(ctx context.Context, userID uuid.UUID) (*models.User, error)
+	GetByMatrixID(ctx context.Context, matrixID string) (*models.User, error)
+	SetMatrixLink(ctx context.Context, userID uuid.UUID, matrixID, roomID string) error
 	ClearMatrixLink(ctx context.Context, userID uuid.UUID) error
 	IsTelegramIDTaken(ctx context.Context, telegramID int64, excludeUserID uuid.UUID) (bool, error)
 	UpdatePassword(ctx context.Context, id uuid.UUID, hashedPassword string) error
@@ -86,6 +88,10 @@ type matrixLinkStore interface {
 	GenerateToken(userID uuid.UUID) (string, error)
 }
 
+type matrixLoginStore interface {
+	CreateSession() (botToken string, pollToken string, err error)
+}
+
 type announcementRepo interface {
 	GetActiveForUser(ctx context.Context, userID uuid.UUID) (*models.Announcement, error)
 	GetActive(ctx context.Context) (*models.Announcement, error)
@@ -100,18 +106,20 @@ type AnnouncementRemovedCallback func(id uuid.UUID)
 type PromotionUpdatedCallback func()
 
 type service struct {
-	repo              repo
-	balanceRepo       balanceRepo
-	refreshTokenRepo  refreshTokenRepo
-	jwtManager        jwtManager
-	telegramLinkStore telegramLinkStore
-	matrixLinkStore   matrixLinkStore
-	announcementRepo  announcementRepo
-	botUsername       string
-	telegramBotToken  string
-	matrixBotUserID   string
-	tx                transactor
-	rng               *rand.Rand
+	repo                 repo
+	balanceRepo          balanceRepo
+	refreshTokenRepo     refreshTokenRepo
+	jwtManager           jwtManager
+	telegramLinkStore    telegramLinkStore
+	matrixLinkStore      matrixLinkStore
+	matrixLoginStore     matrixLoginStore
+	announcementRepo     announcementRepo
+	botUsername          string
+	telegramBotToken     string
+	matrixBotUserID      string
+	matrixLoginBotUserID string
+	tx                   transactor
+	rng                  *rand.Rand
 
 	onAnnouncementCreated AnnouncementCallback
 	onAnnouncementRemoved AnnouncementRemovedCallback
@@ -173,6 +181,13 @@ func (s *service) SetTelegramBotToken(token string) {
 func (s *service) SetMatrixLinkStore(ls matrixLinkStore, botUserID string) {
 	s.matrixLinkStore = ls
 	s.matrixBotUserID = botUserID
+}
+
+// SetMatrixLoginStore configures the Matrix login store and bot user id used by
+// the Matrix bot-login flow. Called after construction to break circular deps.
+func (s *service) SetMatrixLoginStore(ls matrixLoginStore, botUserID string) {
+	s.matrixLoginStore = ls
+	s.matrixLoginBotUserID = botUserID
 }
 
 func (s *service) SetAnnouncementCreatedCallback(cb AnnouncementCallback) {

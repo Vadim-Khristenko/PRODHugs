@@ -38,6 +38,11 @@ type hugService interface {
 	ClaimDailyReward(ctx context.Context, userID uuid.UUID) (amount, streakDays, newBalance int32, alreadyClaimed bool, err error)
 }
 
+// matrixLoginService handles the auth/registration logic for Matrix bot-login.
+type matrixLoginService interface {
+	LoginViaMatrix(ctx context.Context, matrixID, roomID string) (*models.User, error)
+}
+
 // refStore resolves a Matrix event id back to the domain object it notified
 // about, so a reaction on a hug-suggestion message can act on that hug.
 type refStore interface {
@@ -49,13 +54,22 @@ type refStore interface {
 // it. It reuses the Provider's homeserver/token/http for sends and joins, but
 // keeps its own long-poll HTTP client for /sync.
 type Bot struct {
-	provider  *Provider
-	userRepo  botUserRepo
-	hugSvc    hugService
-	refs      refStore
-	linkStore *LinkStore
-	logger    *slog.Logger
-	syncHTTP  *http.Client
+	provider   *Provider
+	userRepo   botUserRepo
+	hugSvc     hugService
+	refs       refStore
+	linkStore  *LinkStore
+	loginStore *LoginStore
+	loginSvc   matrixLoginService
+	logger     *slog.Logger
+	syncHTTP   *http.Client
+}
+
+// SetLoginStore configures the login store and service for Matrix bot-login.
+// Called after construction to break circular dependencies.
+func (b *Bot) SetLoginStore(store *LoginStore, svc matrixLoginService) {
+	b.loginStore = store
+	b.loginSvc = svc
 }
 
 func NewBot(provider *Provider, userRepo botUserRepo, hugSvc hugService, refs refStore, linkStore *LinkStore, logger *slog.Logger) *Bot {
@@ -284,6 +298,8 @@ func (b *Bot) handleMessage(ctx context.Context, roomID, sender, body string) {
 		b.handleHelp(ctx, roomID)
 	case "/link":
 		b.handleLink(ctx, roomID, sender, fields)
+	case "/login":
+		b.handleLoginCmd(ctx, roomID, sender, fields)
 	case "/me":
 		b.handleMe(ctx, roomID, sender)
 	case "/stats":
@@ -323,6 +339,35 @@ func (b *Bot) handleLink(ctx context.Context, roomID, sender string, fields []st
 	}
 	b.logger.Info("matrix bot: account linked", "user_id", userID, "matrix_id", sender)
 	b.reply(ctx, roomID, "✅ Аккаунт привязан! Уведомления об обнимашках будут приходить сюда.")
+}
+
+// handleLoginCmd consumes a "/login <botToken>" command and authenticates (or
+// auto-registers) the sender for the pending web login session.
+func (b *Bot) handleLoginCmd(ctx context.Context, roomID, sender string, fields []string) {
+	if b.loginStore == nil || b.loginSvc == nil {
+		b.reply(ctx, roomID, "Вход через Matrix временно недоступен.")
+		return
+	}
+	if len(fields) != 2 {
+		b.reply(ctx, roomID, "Использование: /login <токен>. Токен показывается на странице входа.")
+		return
+	}
+	botToken := fields[1]
+	pollToken, ok := b.loginStore.ConsumeBotToken(botToken)
+	if !ok {
+		b.reply(ctx, roomID, "Ссылка для входа недействительна или истекла.")
+		return
+	}
+	user, err := b.loginSvc.LoginViaMatrix(ctx, sender, roomID)
+	if err != nil {
+		b.logger.Error("matrix bot: login failed", "matrix_id", sender, "error", err)
+		b.loginStore.FailSession(pollToken, err.Error())
+		b.reply(ctx, roomID, "Не удалось войти, попробуйте позже.")
+		return
+	}
+	b.loginStore.AuthenticateSession(pollToken, user.ID)
+	b.logger.Info("matrix bot: login successful", "user_id", user.ID, "matrix_id", sender)
+	b.reply(ctx, roomID, "✅ Вход выполнен! Вернитесь на сайт.")
 }
 
 // reply sends a plain notice into a room via the provider.

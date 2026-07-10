@@ -18,4 +18,5 @@ var (
 	ErrTelegramLoginFailed = errors.New("telegram login failed")
 
 	ErrMatrixLinkingUnavailable = errors.New("matrix linking not configured")
+	ErrMatrixLoginUnavailable   = errors.New("matrix login not configured")
 )
