@@ -34,10 +34,10 @@ func chatRefFor(name string, a Address) (string, bool) {
 		}
 		return strconv.FormatInt(*a.TelegramID, 10), true
 	case "matrix":
-		if a.MatrixID == nil {
+		if a.MatrixRoom == nil {
 			return "", false
 		}
-		return *a.MatrixID, true
+		return *a.MatrixRoom, true
 	}
 	return "", false
 }

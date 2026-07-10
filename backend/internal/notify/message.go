@@ -30,5 +30,6 @@ type SentRef struct {
 // has not linked that channel.
 type Address struct {
 	TelegramID *int64
-	MatrixID   *string
+	MatrixID   *string // Matrix user id — identity, used for uniqueness checks
+	MatrixRoom *string // Matrix DM room id — delivery target for notifications
 }

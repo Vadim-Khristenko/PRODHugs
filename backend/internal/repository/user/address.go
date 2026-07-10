@@ -26,5 +26,9 @@ func (r *repo) ResolveAddress(ctx context.Context, userID uuid.UUID) (notify.Add
 		v := row.MatrixID.String
 		a.MatrixID = &v
 	}
+	if row.MatrixRoomID.Valid {
+		v := row.MatrixRoomID.String
+		a.MatrixRoom = &v
+	}
 	return a, nil
 }
