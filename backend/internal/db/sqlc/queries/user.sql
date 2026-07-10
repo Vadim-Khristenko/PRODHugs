@@ -390,3 +390,26 @@ UPDATE users
 SET promoted_until = $2, promotion_message = $3, promotion_bid = $4
 WHERE id = $1
 RETURNING *;
+
+-- name: MarkTelegramBlocked :exec
+UPDATE users SET telegram_blocked_at = now() WHERE id = $1 AND telegram_blocked_at IS NULL;
+
+-- name: ClearTelegramBlocked :exec
+UPDATE users SET telegram_blocked_at = NULL WHERE id = $1 AND telegram_blocked_at IS NOT NULL;
+
+-- name: MarkDailyReminderSent :exec
+UPDATE users SET daily_reminder_sent_at = now() WHERE id = $1;
+
+-- name: GetUserAddress :one
+SELECT telegram_id, matrix_id FROM users WHERE id = $1;
+
+-- name: ListDailyReminderCandidates :many
+SELECT u.id, u.telegram_id, u.username, u.display_name, u.gender
+FROM users u
+LEFT JOIN daily_rewards dr ON dr.user_id = u.id
+WHERE u.telegram_id IS NOT NULL
+  AND u.telegram_blocked_at IS NULL
+  AND u.banned_at IS NULL
+  AND (u.daily_reminder_sent_at IS NULL OR u.daily_reminder_sent_at::date < now()::date)
+  AND (dr.last_claimed_at IS NULL OR dr.last_claimed_at::date < now()::date)
+LIMIT $1;
