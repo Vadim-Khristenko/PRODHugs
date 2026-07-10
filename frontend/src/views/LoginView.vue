@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { validateLoginForm, parseBackendError, type FieldError } from '@/lib/validation'
 import { useTelegramLogin } from '@/composables/useTelegramLogin'
+import { useMatrixLogin } from '@/composables/useMatrixLogin'
 import { authApi } from '@/api/client'
 import { setAccessToken } from '@/lib/token'
 import { Button } from '@/components/ui/button'
@@ -29,6 +30,16 @@ const {
   startTelegramLogin,
   cancelTelegramLogin,
 } = useTelegramLogin()
+const {
+  matrixPolling,
+  matrixError,
+  matrixLoading,
+  matrixCommand,
+  matrixBotId,
+  startMatrixLogin,
+  cancelMatrixLogin,
+  copyCommand,
+} = useMatrixLogin()
 const username = ref('')
 const password = ref('')
 const serverError = ref('')
@@ -104,6 +115,41 @@ async function handleWidgetAuth(user: any) {
         </Button>
       </div>
 
+      <!-- Matrix polling overlay -->
+      <div
+        v-if="matrixPolling"
+        class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 rounded-lg bg-background/95 backdrop-blur-sm px-6"
+      >
+        <Loader2 class="h-8 w-8 animate-spin text-primary" />
+        <div class="w-full space-y-2 text-center">
+          <p class="text-sm font-medium">Войти через Matrix</p>
+          <p class="text-xs text-muted-foreground">
+            Бот: <span class="font-mono text-foreground">{{ matrixBotId }}</span>
+          </p>
+          <p class="text-xs text-muted-foreground">
+            Отправьте эту команду боту в личном чате в Matrix:
+          </p>
+          <div class="flex items-center gap-2">
+            <code class="flex-1 truncate rounded-md border bg-muted px-3 py-2 font-mono text-sm text-left">{{ matrixCommand }}</code>
+            <Button
+              variant="outline"
+              size="sm"
+              class="shrink-0 rounded-[21px]"
+              @click="copyCommand"
+            >
+              Копировать
+            </Button>
+          </div>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          @click="cancelMatrixLogin"
+        >
+          Отмена
+        </Button>
+      </div>
+
       <CardHeader class="text-center">
         <img src="/logo.webp" alt="PROD" class="mx-auto mb-2 size-12 rounded-lg object-contain" />
         <CardTitle class="text-xl">Вход</CardTitle>
@@ -151,23 +197,38 @@ async function handleWidgetAuth(user: any) {
             {{ auth.loading ? 'Вход...' : 'Войти' }}
           </Button>
         </form>
-        <!-- Telegram login section -->
+        <!-- Telegram / Matrix login section -->
         <div class="mt-6 flex flex-col items-center">
           <Separator class="my-2 w-full" />
-          <p class="mb-2 text-xs text-muted-foreground">Войти через Telegram</p>
-          <Button
-            type="button"
-            variant="outline"
-            class="w-full flex items-center justify-center gap-2"
-            :disabled="telegramLoading"
-            @click="startTelegramLogin"
-          >
-            <Send class="w-4 h-4" />
-            {{ telegramLoading ? 'Открывается бот...' : 'Войти через бота' }}
-          </Button>
-          <p v-if="telegramError" class="mt-2 text-sm text-destructive text-center">
-            {{ telegramError }}
-          </p>
+          <p class="mb-2 text-xs text-muted-foreground">Войти через мессенджер</p>
+          <div class="w-full flex flex-col gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              class="w-full flex items-center justify-center gap-2"
+              :disabled="telegramLoading"
+              @click="startTelegramLogin"
+            >
+              <Send class="w-4 h-4" />
+              {{ telegramLoading ? 'Открывается бот...' : 'Войти через Telegram' }}
+            </Button>
+            <p v-if="telegramError" class="text-sm text-destructive text-center">
+              {{ telegramError }}
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              class="w-full flex items-center justify-center gap-2"
+              :disabled="matrixLoading"
+              @click="startMatrixLogin"
+            >
+              <Send class="w-4 h-4" />
+              {{ matrixLoading ? 'Подготовка...' : 'Войти через Matrix' }}
+            </Button>
+            <p v-if="matrixError" class="text-sm text-destructive text-center">
+              {{ matrixError }}
+            </p>
+          </div>
           <!-- Telegram Login Widget (only rendered when VITE_TELEGRAM_BOT_USERNAME is set) -->
           <div class="mt-3 flex flex-col items-center gap-1">
             <TelegramLoginWidget @auth="handleWidgetAuth" />

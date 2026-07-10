@@ -64,6 +64,8 @@ const AUTH_PATHS = [
   '/auth/telegram/init',
   '/auth/telegram/poll',
   '/auth/telegram/widget',
+  '/auth/matrix/init',
+  '/auth/matrix/poll',
 ]
 
 function isAuthRequest(config: InternalAxiosRequestConfig | undefined): boolean {
@@ -152,6 +154,10 @@ export const authApi = {
       '/auth/telegram/poll',
       { poll_token: pollToken },
     ),
+  initMatrixLogin: () =>
+    api.post<{ command: string; bot_user_id: string; poll_token: string }>('/auth/matrix/init'),
+  pollMatrixLogin: (pollToken: string) =>
+    api.post<{ token: string; user: User }>('/auth/matrix/poll', { poll_token: pollToken }),
   telegramWidgetLogin: (data: {
     id: number
     first_name: string
