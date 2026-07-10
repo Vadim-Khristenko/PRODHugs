@@ -177,6 +177,40 @@ func (p *Provider) Edit(ctx context.Context, ref notify.SentRef, msg notify.Mess
 	}
 	html := notify.RenderTelegram(msg.Body)
 	empty := inlineKeyboard{InlineKeyboard: [][]inlineButton{}}
+
+	if !p.richOff.Load() {
+		rich := map[string]any{"html": html, "skip_entity_detection": true}
+		ar, err := p.call(ctx, "editMessageText", map[string]any{
+			"chat_id":      chatID,
+			"message_id":   msgID,
+			"rich_message": rich,
+			"reply_markup": empty,
+		})
+		if err != nil {
+			return err
+		}
+		if ar.OK {
+			return nil
+		}
+		if ar.ErrorCode == 403 {
+			return notify.Blocked(fmt.Errorf("telegram 403: %s", ar.Description))
+		}
+		if isUnknownMethod(ar) {
+			p.richOff.Store(true)
+			p.logger.Warn("telegram: editMessageText rich_message unsupported, falling back to classic", "description", ar.Description)
+			// fall through to the classic path below
+		} else {
+			// Best effort: at least remove the buttons so they can't be re-clicked.
+			_, _ = p.call(ctx, "editMessageReplyMarkup", map[string]any{
+				"chat_id":      chatID,
+				"message_id":   msgID,
+				"reply_markup": empty,
+			})
+			return fmt.Errorf("telegram editMessageText failed: %s (%d)", ar.Description, ar.ErrorCode)
+		}
+	}
+
+	// Classic fallback: editMessageText with HTML parse mode.
 	ar, err := p.call(ctx, "editMessageText", map[string]any{
 		"chat_id":      chatID,
 		"message_id":   msgID,
@@ -188,6 +222,9 @@ func (p *Provider) Edit(ctx context.Context, ref notify.SentRef, msg notify.Mess
 		return err
 	}
 	if !ar.OK {
+		if ar.ErrorCode == 403 {
+			return notify.Blocked(fmt.Errorf("telegram 403: %s", ar.Description))
+		}
 		// Best effort: at least remove the buttons so they can't be re-clicked.
 		_, _ = p.call(ctx, "editMessageReplyMarkup", map[string]any{
 			"chat_id":      chatID,
