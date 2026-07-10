@@ -142,26 +142,11 @@ func NewBot(client *legacytg.Client, linkStore *legacytg.LinkStore, userRepo bot
 		pendingComments: make(map[string]pendingHugComment),
 	}
 
-	if !client.Enabled() {
-		return b
-	}
-
-	// The default getMe init timeout (5s) is too aggressive on cold-start /
-	// flaky networks — bump it and don't block app startup on a slow Telegram
-	// response. If getMe still fails the bot stays disabled but the rest of
-	// the service starts.
-	tg, err := tgbot.New(
-		client.Token(),
-		tgbot.WithDefaultHandler(b.handleUpdate),
-		tgbot.WithCheckInitTimeout(30*time.Second),
-	)
-	if err != nil {
-		logger.Error("telegram bot: failed to create", "error", err)
-		return b
-	}
-
-	b.tg = tg
-	b.enabled = true
+	// enabled reflects only whether a token is configured. The actual API
+	// client (which does a getMe round-trip) is created lazily in Run, off the
+	// startup path and with retries, so a transient network blip at boot never
+	// permanently disables the bot.
+	b.enabled = client.Enabled()
 	return b
 }
 
@@ -177,6 +162,30 @@ func (b *Bot) Run(ctx context.Context) {
 	if !b.enabled {
 		b.logger.Info("telegram bot disabled (no token)")
 		return
+	}
+
+	// Create the API client here (does a getMe) with retries, so a slow or
+	// flaky network at startup delays the bot without blocking app boot and
+	// without permanently disabling it.
+	for attempt := 1; ; attempt++ {
+		if ctx.Err() != nil {
+			return
+		}
+		tg, err := tgbot.New(
+			b.client.Token(),
+			tgbot.WithDefaultHandler(b.handleUpdate),
+			tgbot.WithCheckInitTimeout(30*time.Second),
+		)
+		if err == nil {
+			b.tg = tg
+			break
+		}
+		b.logger.Warn("telegram bot: init failed, retrying", "attempt", attempt, "error", err)
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(10 * time.Second):
+		}
 	}
 
 	b.logger.Info("telegram bot started (long-polling)")
