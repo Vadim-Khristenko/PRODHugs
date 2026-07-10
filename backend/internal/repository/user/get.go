@@ -53,3 +53,17 @@ func (r *repo) GetByTelegramID(ctx context.Context, telegramID int64) (*models.U
 
 	return toModelUserFromByTelegramID(u), nil
 }
+
+func (r *repo) GetByMatrixID(ctx context.Context, matrixID string) (*models.User, error) {
+	q := repository.Queries(ctx, r.q)
+
+	u, err := q.GetUserByMatrixID(ctx, pgtype.Text{String: matrixID, Valid: true})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, errorz.ErrUserNotFound
+		}
+		return nil, err
+	}
+
+	return toModelUserFromByMatrixID(u), nil
+}

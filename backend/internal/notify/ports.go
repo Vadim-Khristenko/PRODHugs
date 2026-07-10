@@ -18,6 +18,9 @@ type AddressResolver interface {
 type RefStore interface {
 	SaveRef(ctx context.Context, kind string, eventID uuid.UUID, ref SentRef) error
 	GetRefs(ctx context.Context, kind string, eventID uuid.UUID) ([]SentRef, error)
+	// GetRefByMessage reverse-maps a delivered provider message back to the
+	// (kind, eventID) it belongs to. found=false if there is no such ref.
+	GetRefByMessage(ctx context.Context, provider, messageRef string) (kind string, eventID uuid.UUID, found bool, err error)
 }
 
 // BlockMarker records a Telegram block for a user.

@@ -47,6 +47,9 @@ func (d *fakeDeps) SaveRef(_ context.Context, kind string, id uuid.UUID, r SentR
 func (d *fakeDeps) GetRefs(_ context.Context, kind string, id uuid.UUID) ([]SentRef, error) {
 	return d.refs[kind+id.String()], nil
 }
+func (d *fakeDeps) GetRefByMessage(_ context.Context, _, _ string) (string, uuid.UUID, bool, error) {
+	return "", uuid.Nil, false, nil
+}
 func (d *fakeDeps) MarkTelegramBlocked(_ context.Context, u uuid.UUID) error {
 	d.blocked = append(d.blocked, u)
 	return nil

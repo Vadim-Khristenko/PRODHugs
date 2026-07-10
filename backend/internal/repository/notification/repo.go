@@ -2,12 +2,14 @@ package notification
 
 import (
 	"context"
+	"errors"
 
 	"go-service-template/internal/db/sqlc/storage"
 	"go-service-template/internal/notify"
 	"go-service-template/internal/repository"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -37,4 +39,19 @@ func (r *repo) GetRefs(ctx context.Context, kind string, eventID uuid.UUID) ([]n
 		out = append(out, notify.SentRef{Provider: row.Provider, ChatRef: row.ChatRef, MessageRef: row.MessageRef})
 	}
 	return out, nil
+}
+
+func (r *repo) GetRefByMessage(ctx context.Context, provider, messageRef string) (string, uuid.UUID, bool, error) {
+	q := repository.Queries(ctx, r.q)
+	row, err := q.GetNotificationRefByMessage(ctx, storage.GetNotificationRefByMessageParams{
+		Provider:   provider,
+		MessageRef: messageRef,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", uuid.Nil, false, nil
+		}
+		return "", uuid.Nil, false, err
+	}
+	return row.Kind, row.EventID, true, nil
 }
