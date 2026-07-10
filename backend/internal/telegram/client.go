@@ -34,6 +34,12 @@ func (c *Client) Enabled() bool {
 	return c.token != ""
 }
 
+// Token returns the configured bot token. Used by the inbound bot runner to
+// construct the go-telegram long-polling client from the same credentials.
+func (c *Client) Token() string {
+	return c.token
+}
+
 // telegramResponse is the common response wrapper from the Telegram API.
 type telegramResponse struct {
 	OK          bool            `json:"ok"`
