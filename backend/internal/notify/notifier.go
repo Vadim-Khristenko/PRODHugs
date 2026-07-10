@@ -107,15 +107,16 @@ func (n *Notifier) NotifyHugDeclined(ctx context.Context, giverID, receiverID, h
 	n.r.EditByEvent(ctx, "hug_suggestion", hugID, Message{Body: New().Text("🤗 Обнимашка отклонена ❌").Build()})
 }
 
-// NotifyHugCancelled notifies the receiver that the request was cancelled.
-func (n *Notifier) NotifyHugCancelled(ctx context.Context, receiverID, giverID, hugID uuid.UUID) {
-	giver, err := n.users.GetByID(ctx, giverID)
-	if err != nil {
-		n.logger.Error("notify: look up giver failed", "giver_id", giverID, "error", err)
-		return
-	}
-	verb := genderVerb(giver.Gender, "отменил", "отменила", "отменил(а)")
-	body := New().Text("❌ ").Bold(displayName(giver)).Text(" " + verb + " запрос на объятие").Build()
-	n.r.Notify(ctx, receiverID, Message{Body: body})
+// NotifyHugCancelled updates the receiver's suggestion message to reflect that
+// the giver cancelled the request, dropping the Accept/Decline buttons. There
+// is no separate push — the edited message is the notification (matching the
+// legacy behavior, which never pushed a cancel notice).
+func (n *Notifier) NotifyHugCancelled(ctx context.Context, hugID uuid.UUID) {
 	n.r.EditByEvent(ctx, "hug_suggestion", hugID, Message{Body: New().Text("🤗 Запрос на обнимашку отменён ❌").Build()})
+}
+
+// NotifyDailyReminder pings a user to claim their daily reward.
+func (n *Notifier) NotifyDailyReminder(ctx context.Context, userID uuid.UUID) {
+	body := New().Text("🎁 Не забудьте забрать ежедневную награду сегодня — загляните в приложение!").Build()
+	n.r.Notify(ctx, userID, Message{Body: body})
 }

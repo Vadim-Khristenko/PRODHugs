@@ -17,11 +17,30 @@ type Config struct {
 	Valkey     valkey
 	JWT        jwt
 	Telegram   telegram
+	Matrix     matrix
+	Notify     notify
 }
 
 type telegram struct {
 	BotToken    string `env:"TELEGRAM_BOT_TOKEN"`
 	BotUsername string `env:"TELEGRAM_BOT_USERNAME"`
+}
+
+// matrix holds the credentials for the dormant Matrix notification channel.
+// When any field is empty the Matrix provider reports Enabled()==false and is
+// skipped everywhere.
+type matrix struct {
+	HomeserverURL string `env:"MATRIX_HOMESERVER_URL"`
+	UserID        string `env:"MATRIX_USER_ID"`
+	AccessToken   string `env:"MATRIX_ACCESS_TOKEN"`
+}
+
+// notify holds cross-channel notification settings.
+type notify struct {
+	// DailyReminderHourUTC is the UTC hour (0-23) at which the daily-reward
+	// reminder broadcast runs. Default 8 == 11:00 MSK (RF-centric user base;
+	// a morning ping, never a late-evening one).
+	DailyReminderHourUTC int `env:"DAILY_REMINDER_HOUR_UTC" env-default:"8"`
 }
 
 type httpServer struct {

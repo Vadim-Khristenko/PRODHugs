@@ -39,9 +39,12 @@ import (
 	hugrepo "go-service-template/internal/repository/hug"
 	intimacyrepo "go-service-template/internal/repository/intimacy"
 	noterepo "go-service-template/internal/repository/note"
+	notificationrepo "go-service-template/internal/repository/notification"
 	tokenrepo "go-service-template/internal/repository/token"
 	userrepo "go-service-template/internal/repository/user"
 
+	"go-service-template/internal/notify"
+	notifytg "go-service-template/internal/notify/telegram"
 	hugservice "go-service-template/internal/service/hug"
 	noteservice "go-service-template/internal/service/note"
 	userservice "go-service-template/internal/service/user"
@@ -114,12 +117,21 @@ func New(ctx context.Context, cfg *config.Config, l *slog.Logger) (*App, error) 
 	hugService := hugservice.New(hugRepo, balanceRepo, dailyRewardRepo, userRepo, blockRepoInst, intimacyRepoInst, jwtManager, transactor)
 	noteService := noteservice.New(noteRepo, userRepo)
 
-	// Telegram: client, bot, notifier, link store & login store
+	// Telegram infra: raw HTTP client, account-link store, login store.
 	tgClient := telegram.New(a.cfg.Telegram.BotToken)
 	tgLinkStore := telegram.NewLinkStore()
 	tgLoginStore := telegram.NewLoginStore()
-	tgBot := telegram.NewBot(tgClient, tgLinkStore, userRepo, hugService, a.l)
-	tgNotifier := telegram.NewNotifier(tgClient, tgBot, userRepo, a.l)
+
+	// Notification core: provider-agnostic router + semantic notifier. The
+	// Telegram provider sends outbound notifications (Rich Formatting via
+	// sendRichMessage). Matrix is added here when configured (dormant now).
+	notifRefRepo := notificationrepo.New(a.dbPool)
+	notifyProviders := []notify.Provider{notifytg.New(a.cfg.Telegram.BotToken, a.l)}
+	notifyRouter := notify.NewRouter(notifyProviders, userRepo, notifRefRepo, userRepo, a.l)
+	notifier := notify.NewNotifier(notifyRouter, userRepo, a.l)
+
+	// Inbound Telegram bot (long-polling): commands + button callbacks.
+	tgBot := notifytg.NewBot(tgClient, tgLinkStore, userRepo, hugService, userService, a.l)
 
 	// Telegram link store for user service (generating deep-link tokens)
 	userService.SetTelegramLinkStore(tgLinkStore, a.cfg.Telegram.BotUsername)
@@ -132,18 +144,19 @@ func New(ctx context.Context, cfg *config.Config, l *slog.Logger) (*App, error) 
 
 	hugService.SetHugCompletedCallback(func(item *models.HugFeedItem, bonusCoins int32, comment *string) {
 		a.hub.Broadcast("hug_completed", hughandler.ToFeedItemDTO(item))
-		tgNotifier.NotifyHugCompleted(context.Background(), item.GiverID, item.ReceiverID, item.HugType, bonusCoins, comment)
+		notifier.NotifyHugCompleted(context.Background(), item.GiverID, item.ReceiverID, item.ID, item.HugType, bonusCoins, comment)
 	})
 	hugService.SetHugSuggestionCallback(func(targetUserID uuid.UUID, item *models.PendingHugInboxItem, comment *string) {
 		a.hub.SendToUser(targetUserID, "hug_suggestion", hughandler.ToPendingInboxItemDTO(item))
-		tgNotifier.NotifyHugSuggestion(context.Background(), targetUserID, item.ID, item.GiverID, item.HugType, comment)
+		notifier.NotifyHugSuggestion(context.Background(), targetUserID, item.ID, item.GiverID, item.HugType, comment)
 	})
 	hugService.SetHugDeclinedCallback(func(targetUserID uuid.UUID, hugID uuid.UUID, receiverID uuid.UUID) {
 		a.hub.SendToUser(targetUserID, "hug_declined", map[string]string{"hug_id": hugID.String(), "receiver_id": receiverID.String()})
-		go tgNotifier.NotifyHugDeclined(context.Background(), targetUserID, receiverID)
+		go notifier.NotifyHugDeclined(context.Background(), targetUserID, receiverID, hugID)
 	})
 	hugService.SetHugCancelledCallback(func(targetUserID uuid.UUID, hugID uuid.UUID) {
 		a.hub.SendToUser(targetUserID, "hug_cancelled", map[string]string{"hug_id": hugID.String()})
+		go notifier.NotifyHugCancelled(context.Background(), hugID)
 	})
 
 	userService.SetAnnouncementCreatedCallback(func(ann *models.Announcement) {
@@ -258,6 +271,46 @@ func New(ctx context.Context, cfg *config.Config, l *slog.Logger) (*App, error) 
 			}
 		}
 	}()
+
+	// Daily reward reminder: once per day, at the configured UTC hour, ping
+	// every eligible user (Telegram linked, not blocked/banned, hasn't claimed
+	// or been reminded today). The per-user daily_reminder_sent_at flag dedupes
+	// within the day, so the twice-an-hour tick during the target hour never
+	// double-pings. Only runs when Telegram is configured.
+	if a.cfg.Telegram.BotToken != "" {
+		reminderHour := a.cfg.Notify.DailyReminderHourUTC
+		go func() {
+			ticker := time.NewTicker(30 * time.Minute)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-jobCtx.Done():
+					return
+				case <-ticker.C:
+					if time.Now().UTC().Hour() != reminderHour {
+						continue
+					}
+					for {
+						cands, err := userRepo.ListDailyReminderCandidates(jobCtx, 100)
+						if err != nil {
+							a.l.Error("failed to list daily reminder candidates", "error", err)
+							break
+						}
+						for _, c := range cands {
+							notifier.NotifyDailyReminder(jobCtx, c.ID)
+							if err := userRepo.MarkDailyReminderSent(jobCtx, c.ID); err != nil {
+								a.l.Error("failed to mark daily reminder sent", "user_id", c.ID, "error", err)
+							}
+							time.Sleep(50 * time.Millisecond)
+						}
+						if len(cands) < 100 {
+							break
+						}
+					}
+				}
+			}
+		}()
+	}
 
 	return a, nil
 }
