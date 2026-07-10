@@ -44,6 +44,7 @@ import (
 	userrepo "go-service-template/internal/repository/user"
 
 	"go-service-template/internal/notify"
+	notifymatrix "go-service-template/internal/notify/matrix"
 	notifytg "go-service-template/internal/notify/telegram"
 	hugservice "go-service-template/internal/service/hug"
 	noteservice "go-service-template/internal/service/note"
@@ -126,7 +127,11 @@ func New(ctx context.Context, cfg *config.Config, l *slog.Logger) (*App, error) 
 	// Telegram provider sends outbound notifications (Rich Formatting via
 	// sendRichMessage). Matrix is added here when configured (dormant now).
 	notifRefRepo := notificationrepo.New(a.dbPool)
-	notifyProviders := []notify.Provider{notifytg.New(a.cfg.Telegram.BotToken, a.l)}
+	notifyProviders := []notify.Provider{
+		notifytg.New(a.cfg.Telegram.BotToken, a.l),
+		// Matrix stays dormant until MATRIX_* env vars are set (Enabled()==false).
+		notifymatrix.New(a.cfg.Matrix.HomeserverURL, a.cfg.Matrix.UserID, a.cfg.Matrix.AccessToken, a.l),
+	}
 	notifyRouter := notify.NewRouter(notifyProviders, userRepo, notifRefRepo, userRepo, a.l)
 	notifier := notify.NewNotifier(notifyRouter, userRepo, a.l)
 
