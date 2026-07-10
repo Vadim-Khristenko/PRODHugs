@@ -3,6 +3,8 @@ import { ref, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { validateLoginForm, parseBackendError, type FieldError } from '@/lib/validation'
 import { useTelegramLogin } from '@/composables/useTelegramLogin'
+import { authApi } from '@/api/client'
+import { setAccessToken } from '@/lib/token'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -16,6 +18,8 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Send, Loader2 } from 'lucide-vue-next'
+import TelegramLoginWidget from '@/components/TelegramLoginWidget.vue'
+import router from '@/router'
 
 const auth = useAuthStore()
 const {
@@ -30,6 +34,7 @@ const password = ref('')
 const serverError = ref('')
 const fieldErrors = ref<FieldError[]>([])
 const submitted = ref(false)
+const widgetError = ref<string | null>(null)
 
 function errorFor(field: string): string | undefined {
   return fieldErrors.value.find((e) => e.field === field)?.message
@@ -60,6 +65,20 @@ async function handleLogin() {
     if (!parsed.generalError && parsed.fieldErrors.length === 0) {
       serverError.value = 'Неверное имя пользователя или пароль'
     }
+  }
+}
+
+async function handleWidgetAuth(user: any) {
+  widgetError.value = null
+  try {
+    const res = await authApi.telegramWidgetLogin(user)
+    const { token, user: loggedInUser } = res.data
+    setAccessToken(token)
+    auth.user = loggedInUser
+    localStorage.setItem('user', JSON.stringify(loggedInUser))
+    await router.push('/dashboard')
+  } catch {
+    widgetError.value = 'Не удалось войти через Telegram Widget. Попробуйте снова'
   }
 }
 </script>
@@ -135,6 +154,7 @@ async function handleLogin() {
         <!-- Telegram login section -->
         <div class="mt-6 flex flex-col items-center">
           <Separator class="my-2 w-full" />
+          <p class="mb-2 text-xs text-muted-foreground">Войти через Telegram</p>
           <Button
             type="button"
             variant="outline"
@@ -143,11 +163,18 @@ async function handleLogin() {
             @click="startTelegramLogin"
           >
             <Send class="w-4 h-4" />
-            {{ telegramLoading ? 'Открывается бот...' : 'Войти через Telegram' }}
+            {{ telegramLoading ? 'Открывается бот...' : 'Войти через бота' }}
           </Button>
           <p v-if="telegramError" class="mt-2 text-sm text-destructive text-center">
             {{ telegramError }}
           </p>
+          <!-- Telegram Login Widget (only rendered when VITE_TELEGRAM_BOT_USERNAME is set) -->
+          <div class="mt-3 flex flex-col items-center gap-1">
+            <TelegramLoginWidget @auth="handleWidgetAuth" />
+            <p v-if="widgetError" class="mt-1 text-sm text-destructive text-center">
+              {{ widgetError }}
+            </p>
+          </div>
         </div>
       </CardContent>
       <CardFooter class="justify-center">

@@ -63,6 +63,7 @@ const AUTH_PATHS = [
   '/auth/logout',
   '/auth/telegram/init',
   '/auth/telegram/poll',
+  '/auth/telegram/widget',
 ]
 
 function isAuthRequest(config: InternalAxiosRequestConfig | undefined): boolean {
@@ -151,6 +152,15 @@ export const authApi = {
       '/auth/telegram/poll',
       { poll_token: pollToken },
     ),
+  telegramWidgetLogin: (data: {
+    id: number
+    first_name: string
+    last_name?: string
+    username?: string
+    photo_url?: string
+    auth_date: number
+    hash: string
+  }) => api.post<{ token: string; user: User }>('/auth/telegram/widget', data),
 }
 
 // Hugs
