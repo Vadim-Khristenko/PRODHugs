@@ -108,6 +108,7 @@ type service struct {
 	matrixLinkStore   matrixLinkStore
 	announcementRepo  announcementRepo
 	botUsername       string
+	telegramBotToken  string
 	matrixBotUserID   string
 	tx                transactor
 	rng               *rand.Rand
@@ -159,6 +160,12 @@ func WithAnnouncementRepo(ar announcementRepo) func(*service) {
 func (s *service) SetTelegramLinkStore(ls telegramLinkStore, botUsername string) {
 	s.telegramLinkStore = ls
 	s.botUsername = botUsername
+}
+
+// SetTelegramBotToken configures the Telegram bot token used to verify Login
+// Widget payloads. Called after construction to break circular deps.
+func (s *service) SetTelegramBotToken(token string) {
+	s.telegramBotToken = token
 }
 
 // SetMatrixLinkStore configures the Matrix link store and bot user id for
