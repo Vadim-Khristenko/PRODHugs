@@ -21,6 +21,7 @@ type repo interface {
 	GetTelegramID(ctx context.Context, userID uuid.UUID) (*int64, error)
 	SetTelegramID(ctx context.Context, userID uuid.UUID, telegramID int64) (*models.User, error)
 	ClearTelegramID(ctx context.Context, userID uuid.UUID) (*models.User, error)
+	ClearMatrixLink(ctx context.Context, userID uuid.UUID) error
 	IsTelegramIDTaken(ctx context.Context, telegramID int64, excludeUserID uuid.UUID) (bool, error)
 	UpdatePassword(ctx context.Context, id uuid.UUID, hashedPassword string) error
 	BanUser(ctx context.Context, id uuid.UUID) (*models.User, error)
@@ -81,6 +82,10 @@ type telegramLinkStore interface {
 	GenerateToken(userID uuid.UUID) (string, error)
 }
 
+type matrixLinkStore interface {
+	GenerateToken(userID uuid.UUID) (string, error)
+}
+
 type announcementRepo interface {
 	GetActiveForUser(ctx context.Context, userID uuid.UUID) (*models.Announcement, error)
 	GetActive(ctx context.Context) (*models.Announcement, error)
@@ -100,8 +105,10 @@ type service struct {
 	refreshTokenRepo  refreshTokenRepo
 	jwtManager        jwtManager
 	telegramLinkStore telegramLinkStore
+	matrixLinkStore   matrixLinkStore
 	announcementRepo  announcementRepo
 	botUsername       string
+	matrixBotUserID   string
 	tx                transactor
 	rng               *rand.Rand
 
@@ -152,6 +159,13 @@ func WithAnnouncementRepo(ar announcementRepo) func(*service) {
 func (s *service) SetTelegramLinkStore(ls telegramLinkStore, botUsername string) {
 	s.telegramLinkStore = ls
 	s.botUsername = botUsername
+}
+
+// SetMatrixLinkStore configures the Matrix link store and bot user id for
+// link-token generation. Called after construction to break circular deps.
+func (s *service) SetMatrixLinkStore(ls matrixLinkStore, botUserID string) {
+	s.matrixLinkStore = ls
+	s.matrixBotUserID = botUserID
 }
 
 func (s *service) SetAnnouncementCreatedCallback(cb AnnouncementCallback) {

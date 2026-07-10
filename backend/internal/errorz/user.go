@@ -15,4 +15,6 @@ var (
 	ErrInvalidTelegramID  = errors.New("invalid telegram ID")
 	ErrTelegramIDTaken    = errors.New("telegram ID already linked to another account")
 	ErrNameTooLong        = errors.New("name exceeds maximum allowed length")
+
+	ErrMatrixLinkingUnavailable = errors.New("matrix linking not configured")
 )

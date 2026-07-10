@@ -73,6 +73,31 @@ func (s *service) UnlinkTelegram(ctx context.Context, userID uuid.UUID) (*models
 	return s.repo.ClearTelegramID(ctx, userID)
 }
 
+// GenerateMatrixLinkToken creates a token for Matrix account linking.
+// Returns the token, the command the user must send to the bot, and the
+// configured bot user id.
+func (s *service) GenerateMatrixLinkToken(ctx context.Context, userID uuid.UUID) (string, string, string, error) {
+	if s.matrixLinkStore == nil || s.matrixBotUserID == "" {
+		return "", "", "", errorz.ErrMatrixLinkingUnavailable
+	}
+
+	token, err := s.matrixLinkStore.GenerateToken(userID)
+	if err != nil {
+		return "", "", "", fmt.Errorf("generate matrix link token: %w", err)
+	}
+
+	command := "link " + token
+	return token, command, s.matrixBotUserID, nil
+}
+
+// UnlinkMatrix removes the Matrix link from the user and returns the refreshed user.
+func (s *service) UnlinkMatrix(ctx context.Context, userID uuid.UUID) (*models.User, error) {
+	if err := s.repo.ClearMatrixLink(ctx, userID); err != nil {
+		return nil, err
+	}
+	return s.repo.GetByID(ctx, userID)
+}
+
 func (s *service) ChangePassword(ctx context.Context, id uuid.UUID, oldPassword, newPassword string) error {
 	u, err := s.repo.GetByID(ctx, id)
 	if err != nil {
