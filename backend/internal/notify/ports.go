@@ -3,6 +3,8 @@ package notify
 import (
 	"context"
 
+	"go-service-template/internal/models"
+
 	"github.com/google/uuid"
 )
 
@@ -21,4 +23,10 @@ type RefStore interface {
 // BlockMarker records a Telegram block for a user.
 type BlockMarker interface {
 	MarkTelegramBlocked(ctx context.Context, userID uuid.UUID) error
+}
+
+// UserLookup fetches the domain user needed to render display names and
+// gender-aware copy.
+type UserLookup interface {
+	GetByID(ctx context.Context, id uuid.UUID) (*models.User, error)
 }
