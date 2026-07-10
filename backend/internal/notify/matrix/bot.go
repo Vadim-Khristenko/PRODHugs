@@ -12,16 +12,36 @@ import (
 	"strings"
 	"time"
 
+	"go-service-template/internal/models"
 	"go-service-template/internal/notify"
+	"go-service-template/internal/notify/richtext"
 
 	"github.com/google/uuid"
 )
 
 // botUserRepo is the slice of the user repository the Matrix bot needs to
-// link accounts.
+// link accounts and resolve senders for commands and reactions.
 type botUserRepo interface {
 	IsMatrixIDTaken(ctx context.Context, matrixID string, excludeUserID uuid.UUID) (bool, error)
 	SetMatrixLink(ctx context.Context, userID uuid.UUID, matrixID, roomID string) error
+	GetByMatrixID(ctx context.Context, matrixID string) (*models.User, error)
+}
+
+// hugService is the slice of the hug service the Matrix bot consumes for
+// reaction-driven accept/decline and the /me, /stats, /daily commands.
+type hugService interface {
+	AcceptHug(ctx context.Context, hugID, receiverID uuid.UUID) (*models.Hug, error)
+	DeclineHug(ctx context.Context, hugID, receiverID uuid.UUID) error
+	GetUserStats(ctx context.Context, userID uuid.UUID, gender *string) (*models.UserStats, error)
+	GetHugHistory(ctx context.Context, userID uuid.UUID, limit, offset int32) ([]*models.HugFeedItem, error)
+	GetHugActivity(ctx context.Context) ([]*models.HugActivityItem, error)
+	ClaimDailyReward(ctx context.Context, userID uuid.UUID) (amount, streakDays, newBalance int32, alreadyClaimed bool, err error)
+}
+
+// refStore resolves a Matrix event id back to the domain object it notified
+// about, so a reaction on a hug-suggestion message can act on that hug.
+type refStore interface {
+	GetRefByMessage(ctx context.Context, provider, messageRef string) (string, uuid.UUID, bool, error)
 }
 
 // Bot is a long-running Matrix client that syncs, auto-joins direct-message
@@ -31,23 +51,35 @@ type botUserRepo interface {
 type Bot struct {
 	provider  *Provider
 	userRepo  botUserRepo
+	hugSvc    hugService
+	refs      refStore
 	linkStore *LinkStore
 	logger    *slog.Logger
 	syncHTTP  *http.Client
 }
 
-func NewBot(provider *Provider, userRepo botUserRepo, linkStore *LinkStore, logger *slog.Logger) *Bot {
+func NewBot(provider *Provider, userRepo botUserRepo, hugSvc hugService, refs refStore, linkStore *LinkStore, logger *slog.Logger) *Bot {
 	if logger == nil {
 		logger = slog.Default()
 	}
 	return &Bot{
 		provider:  provider,
 		userRepo:  userRepo,
+		hugSvc:    hugSvc,
+		refs:      refs,
 		linkStore: linkStore,
 		logger:    logger,
 		// Long-poll client: its timeout must exceed the /sync timeout below.
 		syncHTTP: &http.Client{Timeout: 60 * time.Second},
 	}
+}
+
+// relatesTo captures an event's m.relates_to, used to read m.reaction
+// annotations (rel_type=m.annotation) back off the sync timeline.
+type relatesTo struct {
+	RelType string `json:"rel_type"`
+	EventID string `json:"event_id"`
+	Key     string `json:"key"`
 }
 
 // syncResponse is the minimal slice of the Matrix /sync response we consume.
@@ -61,8 +93,9 @@ type syncResponse struct {
 					Type    string `json:"type"`
 					Sender  string `json:"sender"`
 					Content struct {
-						MsgType string `json:"msgtype"`
-						Body    string `json:"body"`
+						MsgType   string     `json:"msgtype"`
+						Body      string     `json:"body"`
+						RelatesTo *relatesTo `json:"m.relates_to"`
 					} `json:"content"`
 				} `json:"events"`
 			} `json:"timeline"`
@@ -154,15 +187,55 @@ func (b *Bot) process(ctx context.Context, sr *syncResponse) {
 	}
 	for roomID, room := range sr.Rooms.Join {
 		for _, ev := range room.Timeline.Events {
-			if ev.Type != "m.room.message" || ev.Content.MsgType != "m.text" {
-				continue
-			}
-			// Ignore our own messages (replies echo back in sync).
+			// Ignore our own events (replies/reactions echo back in sync).
 			if ev.Sender == b.provider.userID {
 				continue
 			}
-			b.handleMessage(ctx, roomID, ev.Sender, ev.Content.Body)
+			switch ev.Type {
+			case "m.reaction":
+				b.handleReaction(ctx, roomID, ev.Sender, ev.Content.RelatesTo)
+			case "m.room.message":
+				if ev.Content.MsgType != "m.text" {
+					continue
+				}
+				b.handleMessage(ctx, roomID, ev.Sender, ev.Content.Body)
+			}
 		}
+	}
+}
+
+// handleReaction acts on a user's reaction to a bot message. A reaction that
+// maps to a hug verb and targets a hug-suggestion notification accepts or
+// declines that hug on the reacting (linked) user's behalf.
+func (b *Bot) handleReaction(ctx context.Context, roomID, sender string, rel *relatesTo) {
+	if rel == nil || rel.RelType != "m.annotation" || rel.EventID == "" {
+		return
+	}
+	verb, ok := verbForReaction(rel.Key)
+	if !ok {
+		return
+	}
+	kind, hugID, found, err := b.refs.GetRefByMessage(ctx, "matrix", rel.EventID)
+	if err != nil || !found || kind != "hug_suggestion" {
+		return
+	}
+	user, err := b.userRepo.GetByMatrixID(ctx, sender)
+	if err != nil {
+		return // not linked; ignore
+	}
+	switch verb {
+	case "accept":
+		if _, err := b.hugSvc.AcceptHug(ctx, hugID, user.ID); err != nil {
+			b.logger.Warn("matrix: accept via reaction failed", "error", err)
+			return
+		}
+		b.reply(ctx, roomID, "🤗 Обнимашка принята!")
+	case "decline":
+		if err := b.hugSvc.DeclineHug(ctx, hugID, user.ID); err != nil {
+			b.logger.Warn("matrix: decline via reaction failed", "error", err)
+			return
+		}
+		b.reply(ctx, roomID, "Обнимашка отклонена.")
 	}
 }
 
@@ -197,12 +270,37 @@ func parseLinkCommand(body string) (token string, ok bool) {
 	return fields[1], true
 }
 
-// handleMessage consumes a link command and links the sender's Matrix account.
+// handleMessage is the "/"-prefix command router. Familiar with Telegram, the
+// bot uses the same slash commands; non-command messages are ignored.
 func (b *Bot) handleMessage(ctx context.Context, roomID, sender, body string) {
-	token, ok := parseLinkCommand(body)
-	if !ok {
+	text := strings.TrimSpace(body)
+	if !strings.HasPrefix(text, "/") {
 		return
 	}
+	fields := strings.Fields(text)
+	cmd := strings.ToLower(fields[0])
+	switch cmd {
+	case "/start", "/help":
+		b.handleHelp(ctx, roomID)
+	case "/link":
+		b.handleLink(ctx, roomID, sender, fields)
+	case "/me":
+		b.handleMe(ctx, roomID, sender)
+	case "/stats":
+		b.handleStats(ctx, roomID)
+	case "/daily":
+		b.handleDaily(ctx, roomID, sender)
+	}
+}
+
+// handleLink consumes a "/link <token>" command and links the sender's Matrix
+// account to the user the token belongs to.
+func (b *Bot) handleLink(ctx context.Context, roomID, sender string, fields []string) {
+	if len(fields) != 2 {
+		b.reply(ctx, roomID, "Использование: /link <токен>. Токен можно получить в настройках на сайте.")
+		return
+	}
+	token := fields[1]
 	userID, ok := b.linkStore.ConsumeToken(token)
 	if !ok {
 		b.reply(ctx, roomID, "Ссылка недействительна или истекла. Сгенерируйте новую команду в настройках приложения.")
@@ -229,7 +327,12 @@ func (b *Bot) handleMessage(ctx context.Context, roomID, sender, body string) {
 
 // reply sends a plain notice into a room via the provider.
 func (b *Bot) reply(ctx context.Context, roomID, text string) {
-	msg := notify.Message{Body: notify.New().Text(text).Build()}
+	b.replyDoc(ctx, roomID, notify.New().Text(text).Build())
+}
+
+// replyDoc sends a richtext document into a room via the provider.
+func (b *Bot) replyDoc(ctx context.Context, roomID string, doc richtext.Doc) {
+	msg := notify.Message{Body: doc}
 	if _, err := b.provider.Send(ctx, roomID, msg); err != nil {
 		b.logger.Warn("matrix bot: reply failed", "room", roomID, "error", err)
 	}
