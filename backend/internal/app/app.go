@@ -127,10 +127,13 @@ func New(ctx context.Context, cfg *config.Config, l *slog.Logger) (*App, error) 
 	// Telegram provider sends outbound notifications (Rich Formatting via
 	// sendRichMessage). Matrix is added here when configured (dormant now).
 	notifRefRepo := notificationrepo.New(a.dbPool)
+	// Matrix provider + its account-link store. Both stay dormant until the
+	// MATRIX_* env vars are set (Provider.Enabled()==false).
+	matrixProvider := notifymatrix.New(a.cfg.Matrix.HomeserverURL, a.cfg.Matrix.UserID, a.cfg.Matrix.AccessToken, a.l)
+	matrixLinkStore := notifymatrix.NewLinkStore()
 	notifyProviders := []notify.Provider{
 		notifytg.New(a.cfg.Telegram.BotToken, a.l),
-		// Matrix stays dormant until MATRIX_* env vars are set (Enabled()==false).
-		notifymatrix.New(a.cfg.Matrix.HomeserverURL, a.cfg.Matrix.UserID, a.cfg.Matrix.AccessToken, a.l),
+		matrixProvider,
 	}
 	notifyRouter := notify.NewRouter(notifyProviders, userRepo, notifRefRepo, userRepo, a.l)
 	notifier := notify.NewNotifier(notifyRouter, userRepo, a.l)
@@ -138,8 +141,12 @@ func New(ctx context.Context, cfg *config.Config, l *slog.Logger) (*App, error) 
 	// Inbound Telegram bot (long-polling): commands + button callbacks.
 	tgBot := notifytg.NewBot(tgClient, tgLinkStore, userRepo, hugService, userService, a.l)
 
-	// Telegram link store for user service (generating deep-link tokens)
+	// Inbound Matrix bot (sync loop): auto-joins DMs, consumes link commands.
+	matrixBot := notifymatrix.NewBot(matrixProvider, userRepo, matrixLinkStore, a.l)
+
+	// Link stores for the user service (generating link tokens/commands).
 	userService.SetTelegramLinkStore(tgLinkStore, a.cfg.Telegram.BotUsername)
+	userService.SetMatrixLinkStore(matrixLinkStore, a.cfg.Matrix.UserID)
 
 	// Telegram login: wire login store + service into bot
 	tgBot.SetLoginStore(tgLoginStore, userService)
@@ -228,6 +235,9 @@ func New(ctx context.Context, cfg *config.Config, l *slog.Logger) (*App, error) 
 
 	// Telegram bot (long-polling)
 	go tgBot.Run(jobCtx)
+
+	// Matrix bot (sync loop) — no-op unless Matrix is configured.
+	go matrixBot.Run(jobCtx)
 
 	// Expire stale pending hugs every 5 minutes.
 	go func() {
