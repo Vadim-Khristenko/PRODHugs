@@ -3,6 +3,7 @@ package telegram
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"go-service-template/internal/models"
@@ -161,6 +162,103 @@ func (b *Bot) handleBan(ctx context.Context, msg *tgmodels.Message, ban bool) {
 			htmlEscape(displayName(target)), verb, state))
 	b.logger.Info("telegram bot: moderation action",
 		"actor", caller.ID, "target", target.ID, "ban", ban)
+}
+
+// ── /grant / /userinfo (admin) ────────────────────────────────────────────
+//
+// /grant @username <amount>  — SET the target's coin balance to <amount>
+//                              (absolute, mirroring the admin panel).
+// /userinfo @username        — show role, balance, and linked platforms.
+//
+// Target resolution reuses resolveModerationTarget (@username or reply).
+
+// grantAmountArg extracts the amount argument from a /grant command's fields.
+// The target is fields[1] (@username) OR, in reply mode, absent — so the
+// amount is the last numeric field. Returns ok=false when no valid
+// non-negative int32 amount is present.
+func grantAmountArg(fields []string) (int32, bool) {
+	for i := len(fields) - 1; i >= 1; i-- {
+		n, err := strconv.ParseInt(strings.TrimSpace(fields[i]), 10, 32)
+		if err == nil && n >= 0 {
+			return int32(n), true
+		}
+	}
+	return 0, false
+}
+
+func (b *Bot) handleGrant(ctx context.Context, msg *tgmodels.Message) {
+	chatID := msg.Chat.ID
+	caller, ok := b.requireAdmin(ctx, chatID)
+	if !ok {
+		return
+	}
+	if b.announceSvc == nil {
+		b.reply(ctx, chatID, "Сервис баланса не подключён.")
+		return
+	}
+
+	amount, ok := grantAmountArg(strings.Fields(msg.Text))
+	if !ok {
+		b.reply(ctx, chatID, "Сколько начислить? <code>/grant @username &lt;сумма&gt;</code>.")
+		return
+	}
+
+	target, resolved := b.resolveModerationTarget(ctx, msg)
+	if !resolved {
+		b.reply(ctx, chatID, "Не понимаю, кому. Напишите <code>/grant @username &lt;сумма&gt;</code> или ответьте командой на сообщение пользователя.")
+		return
+	}
+
+	bal, err := b.announceSvc.AdminUpdateBalance(ctx, target.ID, amount)
+	if err != nil {
+		b.logger.Error("telegram bot: /grant failed", "actor", caller.ID, "target", target.ID, "amount", amount, "error", err)
+		b.reply(ctx, chatID, "Не получилось изменить баланс: "+friendlyError(err))
+		return
+	}
+	set := amount
+	if bal != nil {
+		set = bal.Amount
+	}
+	b.logger.Info("telegram bot: /grant", "actor", caller.ID, "target", target.ID, "amount", set)
+	b.reply(ctx, chatID, fmt.Sprintf("Баланс <b>%s</b> установлен: <b>%d</b>.", htmlEscape(displayName(target)), set))
+}
+
+func (b *Bot) handleUserinfo(ctx context.Context, msg *tgmodels.Message) {
+	chatID := msg.Chat.ID
+	if _, ok := b.requireAdmin(ctx, chatID); !ok {
+		return
+	}
+
+	target, resolved := b.resolveModerationTarget(ctx, msg)
+	if !resolved {
+		b.reply(ctx, chatID, "О ком? Напишите <code>/userinfo @username</code> или ответьте командой на сообщение пользователя.")
+		return
+	}
+
+	var balAmount int32
+	if bal, err := b.hugSvc.GetBalance(ctx, target.ID); err != nil {
+		b.logger.Warn("telegram bot: /userinfo balance lookup failed", "target", target.ID, "error", err)
+	} else if bal != nil {
+		balAmount = bal.Amount
+	}
+
+	tgLinked := "нет"
+	if target.TelegramID != nil {
+		tgLinked = "да"
+	}
+	matrixLinked := "нет"
+	if target.MatrixID != nil {
+		matrixLinked = "да"
+	}
+	banned := ""
+	if target.BannedAt != nil {
+		banned = "\nСтатус: <b>забанен</b>"
+	}
+
+	b.reply(ctx, chatID, fmt.Sprintf(
+		"<b>%s</b> · @%s\nРоль: <b>%s</b>\nБаланс: <b>%d</b>\nTelegram: %s · Matrix: %s%s",
+		htmlEscape(displayName(target)), htmlEscape(target.Username),
+		htmlEscape(target.Role), balAmount, tgLinked, matrixLinked, banned))
 }
 
 // resolveModerationTarget figures out who the command is acting on. Returns

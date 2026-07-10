@@ -49,10 +49,14 @@ type botUserRepo interface {
 	ClearTelegramBlocked(ctx context.Context, userID uuid.UUID) error
 }
 
-// botAnnouncementSvc is the admin announcement surface — create + take down.
+// botAnnouncementSvc is the admin surface backed by the user service:
+// announcements plus admin balance grants.
 type botAnnouncementSvc interface {
 	CreateAnnouncement(ctx context.Context, adminID uuid.UUID, message string) (*models.Announcement, error)
 	DeactivateAnnouncement(ctx context.Context, id uuid.UUID) error
+	// AdminUpdateBalance SETS the target user's coin balance to amount
+	// (absolute value, mirroring the admin panel), returning the new balance.
+	AdminUpdateBalance(ctx context.Context, userID uuid.UUID, amount int32) (*models.Balance, error)
 }
 
 // hugAcceptor is the slice of the hug service the bot consumes: button
@@ -65,6 +69,7 @@ type hugAcceptor interface {
 	GetHugActivity(ctx context.Context) ([]*models.HugActivityItem, error)
 	GetUserStats(ctx context.Context, userID uuid.UUID, gender *string) (*models.UserStats, error)
 	GetHugHistory(ctx context.Context, userID uuid.UUID, limit, offset int32) ([]*models.HugFeedItem, error)
+	GetBalance(ctx context.Context, userID uuid.UUID) (*models.Balance, error)
 }
 
 // telegramLoginService handles the auth/registration logic for Telegram login.
@@ -226,10 +231,16 @@ func (b *Bot) handleUpdate(ctx context.Context, _ *tgbot.Bot, update *tgmodels.U
 		b.handleAnnounce(ctx, update.Message)
 	case strings.HasPrefix(text, "/unannounce"):
 		b.handleUnannounce(ctx, update.Message)
+	case strings.HasPrefix(text, "/grant"):
+		b.handleGrant(ctx, update.Message)
+	case strings.HasPrefix(text, "/userinfo"):
+		b.handleUserinfo(ctx, update.Message)
 	case strings.HasPrefix(text, "/ban"):
 		b.handleBan(ctx, update.Message, true)
 	case strings.HasPrefix(text, "/unban"):
 		b.handleBan(ctx, update.Message, false)
+	case text == "/help" || strings.HasPrefix(text, "/help "):
+		b.handleHelp(ctx, update.Message)
 	}
 }
 

@@ -8,6 +8,29 @@ import (
 	tgmodels "github.com/go-telegram/bot/models"
 )
 
+// ── /help ────────────────────────────────────────────────────────────────────
+//
+// Lists the available commands. Admin-only commands are grouped and marked.
+func (b *Bot) handleHelp(ctx context.Context, msg *tgmodels.Message) {
+	chatID := msg.Chat.ID
+
+	var sb strings.Builder
+	sb.WriteString("<b>PRODHugs — команды</b>\n\n")
+	sb.WriteString("<b>/me</b> — профиль и последние обнимашки\n")
+	sb.WriteString("<b>/stats</b> — активность за 24 часа\n")
+	sb.WriteString("<b>/daily</b> — забрать ежедневную награду\n")
+	sb.WriteString("<b>/hug</b> — обнять кого-нибудь\n")
+	sb.WriteString("<b>/help</b> — эта справка\n\n")
+	sb.WriteString("<b>Для администраторов</b>\n")
+	sb.WriteString("<b>/grant</b> @user &lt;сумма&gt; — установить баланс\n")
+	sb.WriteString("<b>/userinfo</b> @user — карточка пользователя\n")
+	sb.WriteString("<b>/ban</b> / <b>/unban</b> @user — модерация\n")
+	sb.WriteString("<b>/announce</b> / <b>/unannounce</b> — объявления\n\n")
+	sb.WriteString("<blockquote>Команды для админов доступны только с ролью admin и привязанным Telegram.</blockquote>")
+
+	b.reply(ctx, chatID, sb.String())
+}
+
 // ── /me ────────────────────────────────────────────────────────────────────
 //
 // Shows the caller's profile and their five most recent hugs. Comments on
@@ -70,7 +93,7 @@ func (b *Bot) handleMe(ctx context.Context, msg *tgmodels.Message) {
 				hugTypeShortLabel(h.HugType),
 			)
 		}
-		sb.WriteString("\n<i>Комментарии не показываю — они приватные для получателя.</i>")
+		sb.WriteString("\n<blockquote>Комментарии не показываю — они приватные для получателя.</blockquote>")
 	} else {
 		sb.WriteString("\nПока что обнимашек нет — самое время кому-нибудь написать!")
 	}
