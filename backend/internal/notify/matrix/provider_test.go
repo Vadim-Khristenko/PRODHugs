@@ -25,7 +25,7 @@ func TestEnabledRequiresAllThree(t *testing.T) {
 	}
 }
 
-func TestBuildContentDegradesButtons(t *testing.T) {
+func TestBuildContentBodyOnly(t *testing.T) {
 	msg := notify.Message{
 		Body: notify.New().Bold("Аня").Text(" хочет обнять").Build(),
 		Buttons: [][]notify.Button{{
@@ -41,13 +41,14 @@ func TestBuildContentDegradesButtons(t *testing.T) {
 	if !strings.Contains(html, "<strong>Аня</strong>") {
 		t.Fatalf("formatted_body missing bold: %q", html)
 	}
-	// Buttons degrade to a trailing text list (Matrix has no inline buttons).
-	if !strings.Contains(html, "Обнять 🤗") || !strings.Contains(html, "Отклонить") {
-		t.Fatalf("button labels not degraded into body: %q", html)
+	// Buttons are placed as m.reaction annotations by Send, not degraded into
+	// the body — so the labels must NOT appear in the rendered content.
+	if strings.Contains(html, "Обнять 🤗") || strings.Contains(html, "Отклонить") {
+		t.Fatalf("button labels leaked into formatted_body: %q", html)
 	}
 	body := c["body"].(string)
-	if !strings.Contains(body, "Обнять 🤗") {
-		t.Fatalf("plain body missing button hint: %q", body)
+	if strings.Contains(body, "Обнять 🤗") || strings.Contains(body, "Отклонить") {
+		t.Fatalf("button labels leaked into plain body: %q", body)
 	}
 }
 

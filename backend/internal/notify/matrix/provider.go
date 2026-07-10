@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -56,21 +57,11 @@ func (p *Provider) nextTxn() string {
 }
 
 // buildContent renders msg into a Matrix m.notice event content. Matrix has
-// no native inline buttons, so buttons degrade to a trailing text list.
+// no native inline buttons; buttons are placed separately as m.reaction
+// annotations (see Send), so the body renders only the message text.
 func buildContent(msg notify.Message) map[string]any {
 	plain := notify.RenderPlain(msg.Body)
 	html := notify.RenderMatrixHTML(msg.Body)
-	if len(msg.Buttons) > 0 {
-		var labels []string
-		for _, row := range msg.Buttons {
-			for _, b := range row {
-				labels = append(labels, b.Label)
-			}
-		}
-		hint := strings.Join(labels, " · ")
-		plain += "\n" + hint
-		html += "<br><em>" + hint + "</em>"
-	}
 	return map[string]any{
 		"msgtype":        "m.notice",
 		"body":           plain,
@@ -115,11 +106,55 @@ func (p *Provider) putEvent(ctx context.Context, roomID string, content map[stri
 	return sr.EventID, nil
 }
 
-// Send delivers msg to the room identified by chatRef.
+// SendReaction places an m.reaction annotation (a "button") on a target event.
+func (p *Provider) SendReaction(ctx context.Context, roomID, targetEventID, key string) error {
+	content := map[string]any{
+		"m.relates_to": map[string]any{
+			"rel_type": "m.annotation",
+			"event_id": targetEventID,
+			"key":      key,
+		},
+	}
+	txn := p.nextTxn()
+	endpoint := fmt.Sprintf("%s/_matrix/client/v3/rooms/%s/send/m.reaction/%s",
+		p.homeserver, url.PathEscape(roomID), url.PathEscape(txn))
+	body, err := json.Marshal(content)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, endpoint, bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+p.token)
+	resp, err := p.http.Do(req)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(io.LimitReader(resp.Body, 256))
+		return fmt.Errorf("matrix reaction status %d: %s", resp.StatusCode, strings.TrimSpace(string(b)))
+	}
+	return nil
+}
+
+// Send delivers msg to the room identified by chatRef. Buttons whose action
+// maps to a reaction are placed as m.reaction annotations on the sent event.
 func (p *Provider) Send(ctx context.Context, chatRef string, msg notify.Message) (notify.SentRef, error) {
 	eventID, err := p.putEvent(ctx, chatRef, buildContent(msg))
 	if err != nil {
 		return notify.SentRef{}, err
+	}
+	for _, row := range msg.Buttons {
+		for _, b := range row {
+			if key, ok := reactionForAction(b.Action); ok {
+				if err := p.SendReaction(ctx, chatRef, eventID, key); err != nil {
+					p.logger.Warn("matrix: place reaction failed", "key", key, "error", err)
+				}
+			}
+		}
 	}
 	return notify.SentRef{Provider: "matrix", ChatRef: chatRef, MessageRef: eventID}, nil
 }
