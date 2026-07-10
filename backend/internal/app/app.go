@@ -158,11 +158,13 @@ func New(ctx context.Context, cfg *config.Config, l *slog.Logger) (*App, error) 
 
 	hugService.SetHugCompletedCallback(func(item *models.HugFeedItem, bonusCoins int32, comment *string) {
 		a.hub.Broadcast("hug_completed", hughandler.ToFeedItemDTO(item))
-		notifier.NotifyHugCompleted(context.Background(), item.GiverID, item.ReceiverID, item.ID, item.HugType, bonusCoins, comment)
+		// Fire-and-forget off the request path: notifier does network I/O
+		// (Telegram/Matrix sends) that must not block the API response.
+		go notifier.NotifyHugCompleted(context.Background(), item.GiverID, item.ReceiverID, item.ID, item.HugType, bonusCoins, comment)
 	})
 	hugService.SetHugSuggestionCallback(func(targetUserID uuid.UUID, item *models.PendingHugInboxItem, comment *string) {
 		a.hub.SendToUser(targetUserID, "hug_suggestion", hughandler.ToPendingInboxItemDTO(item))
-		notifier.NotifyHugSuggestion(context.Background(), targetUserID, item.ID, item.GiverID, item.HugType, comment)
+		go notifier.NotifyHugSuggestion(context.Background(), targetUserID, item.ID, item.GiverID, item.HugType, comment)
 	})
 	hugService.SetHugDeclinedCallback(func(targetUserID uuid.UUID, hugID uuid.UUID, receiverID uuid.UUID) {
 		a.hub.SendToUser(targetUserID, "hug_declined", map[string]string{"hug_id": hugID.String(), "receiver_id": receiverID.String()})
