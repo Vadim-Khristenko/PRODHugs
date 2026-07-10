@@ -401,7 +401,16 @@ UPDATE users SET telegram_blocked_at = NULL WHERE id = $1 AND telegram_blocked_a
 UPDATE users SET daily_reminder_sent_at = now() WHERE id = $1;
 
 -- name: GetUserAddress :one
-SELECT telegram_id, matrix_id FROM users WHERE id = $1;
+SELECT telegram_id, matrix_id, matrix_room_id FROM users WHERE id = $1;
+
+-- name: SetMatrixLink :exec
+UPDATE users SET matrix_id = $2, matrix_room_id = $3 WHERE id = $1;
+
+-- name: ClearMatrixLink :exec
+UPDATE users SET matrix_id = NULL, matrix_room_id = NULL WHERE id = $1;
+
+-- name: IsMatrixIDTaken :one
+SELECT EXISTS(SELECT 1 FROM users WHERE matrix_id = $1 AND id <> $2);
 
 -- name: ListDailyReminderCandidates :many
 SELECT u.id, u.telegram_id, u.username, u.display_name, u.gender

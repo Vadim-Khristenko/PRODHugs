@@ -133,6 +133,7 @@ type User struct {
 	TelegramBlockedAt    pgtype.Timestamptz
 	DailyReminderSentAt  pgtype.Timestamptz
 	MatrixID             pgtype.Text
+	MatrixRoomID         pgtype.Text
 }
 
 type UserBlock struct {

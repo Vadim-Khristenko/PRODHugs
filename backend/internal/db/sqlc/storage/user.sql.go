@@ -16,7 +16,7 @@ const adminClearPromotion = `-- name: AdminClearPromotion :one
 UPDATE users
 SET promoted_until = NULL, promotion_message = NULL, promotion_bid = 0
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until, telegram_blocked_at, daily_reminder_sent_at, matrix_id
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until, telegram_blocked_at, daily_reminder_sent_at, matrix_id, matrix_room_id
 `
 
 func (q *Queries) AdminClearPromotion(ctx context.Context, id uuid.UUID) (User, error) {
@@ -45,6 +45,7 @@ func (q *Queries) AdminClearPromotion(ctx context.Context, id uuid.UUID) (User, 
 		&i.TelegramBlockedAt,
 		&i.DailyReminderSentAt,
 		&i.MatrixID,
+		&i.MatrixRoomID,
 	)
 	return i, err
 }
@@ -66,7 +67,7 @@ const adminUpdateCaptchaType = `-- name: AdminUpdateCaptchaType :one
 UPDATE users
 SET captcha_type = $2
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until, telegram_blocked_at, daily_reminder_sent_at, matrix_id
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until, telegram_blocked_at, daily_reminder_sent_at, matrix_id, matrix_room_id
 `
 
 type AdminUpdateCaptchaTypeParams struct {
@@ -100,6 +101,7 @@ func (q *Queries) AdminUpdateCaptchaType(ctx context.Context, arg AdminUpdateCap
 		&i.TelegramBlockedAt,
 		&i.DailyReminderSentAt,
 		&i.MatrixID,
+		&i.MatrixRoomID,
 	)
 	return i, err
 }
@@ -108,7 +110,7 @@ const adminUpdateDisplayName = `-- name: AdminUpdateDisplayName :one
 UPDATE users
 SET display_name = $2
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until, telegram_blocked_at, daily_reminder_sent_at, matrix_id
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until, telegram_blocked_at, daily_reminder_sent_at, matrix_id, matrix_room_id
 `
 
 type AdminUpdateDisplayNameParams struct {
@@ -142,6 +144,7 @@ func (q *Queries) AdminUpdateDisplayName(ctx context.Context, arg AdminUpdateDis
 		&i.TelegramBlockedAt,
 		&i.DailyReminderSentAt,
 		&i.MatrixID,
+		&i.MatrixRoomID,
 	)
 	return i, err
 }
@@ -150,7 +153,7 @@ const adminUpdateGender = `-- name: AdminUpdateGender :one
 UPDATE users
 SET gender = $2
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until, telegram_blocked_at, daily_reminder_sent_at, matrix_id
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until, telegram_blocked_at, daily_reminder_sent_at, matrix_id, matrix_room_id
 `
 
 type AdminUpdateGenderParams struct {
@@ -184,6 +187,7 @@ func (q *Queries) AdminUpdateGender(ctx context.Context, arg AdminUpdateGenderPa
 		&i.TelegramBlockedAt,
 		&i.DailyReminderSentAt,
 		&i.MatrixID,
+		&i.MatrixRoomID,
 	)
 	return i, err
 }
@@ -208,7 +212,7 @@ const adminUpdateSpecialTag = `-- name: AdminUpdateSpecialTag :one
 UPDATE users
 SET special_tag = $2
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until, telegram_blocked_at, daily_reminder_sent_at, matrix_id
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until, telegram_blocked_at, daily_reminder_sent_at, matrix_id, matrix_room_id
 `
 
 type AdminUpdateSpecialTagParams struct {
@@ -242,6 +246,7 @@ func (q *Queries) AdminUpdateSpecialTag(ctx context.Context, arg AdminUpdateSpec
 		&i.TelegramBlockedAt,
 		&i.DailyReminderSentAt,
 		&i.MatrixID,
+		&i.MatrixRoomID,
 	)
 	return i, err
 }
@@ -250,7 +255,7 @@ const adminUpdateTag = `-- name: AdminUpdateTag :one
 UPDATE users
 SET tag = $2
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until, telegram_blocked_at, daily_reminder_sent_at, matrix_id
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until, telegram_blocked_at, daily_reminder_sent_at, matrix_id, matrix_room_id
 `
 
 type AdminUpdateTagParams struct {
@@ -284,6 +289,7 @@ func (q *Queries) AdminUpdateTag(ctx context.Context, arg AdminUpdateTagParams) 
 		&i.TelegramBlockedAt,
 		&i.DailyReminderSentAt,
 		&i.MatrixID,
+		&i.MatrixRoomID,
 	)
 	return i, err
 }
@@ -292,7 +298,7 @@ const adminUpdateUsername = `-- name: AdminUpdateUsername :one
 UPDATE users
 SET username = $2
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until, telegram_blocked_at, daily_reminder_sent_at, matrix_id
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until, telegram_blocked_at, daily_reminder_sent_at, matrix_id, matrix_room_id
 `
 
 type AdminUpdateUsernameParams struct {
@@ -326,6 +332,7 @@ func (q *Queries) AdminUpdateUsername(ctx context.Context, arg AdminUpdateUserna
 		&i.TelegramBlockedAt,
 		&i.DailyReminderSentAt,
 		&i.MatrixID,
+		&i.MatrixRoomID,
 	)
 	return i, err
 }
@@ -334,7 +341,7 @@ const banUser = `-- name: BanUser :one
 UPDATE users
 SET banned_at = NOW()
 WHERE id = $1 AND role != 'admin'
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until, telegram_blocked_at, daily_reminder_sent_at, matrix_id
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until, telegram_blocked_at, daily_reminder_sent_at, matrix_id, matrix_room_id
 `
 
 func (q *Queries) BanUser(ctx context.Context, id uuid.UUID) (User, error) {
@@ -363,6 +370,7 @@ func (q *Queries) BanUser(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.TelegramBlockedAt,
 		&i.DailyReminderSentAt,
 		&i.MatrixID,
+		&i.MatrixRoomID,
 	)
 	return i, err
 }
@@ -381,6 +389,15 @@ func (q *Queries) ClearExpiredPromotions(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearMatrixLink = `-- name: ClearMatrixLink :exec
+UPDATE users SET matrix_id = NULL, matrix_room_id = NULL WHERE id = $1
+`
+
+func (q *Queries) ClearMatrixLink(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, clearMatrixLink, id)
+	return err
+}
+
 const clearTelegramBlocked = `-- name: ClearTelegramBlocked :exec
 UPDATE users SET telegram_blocked_at = NULL WHERE id = $1 AND telegram_blocked_at IS NOT NULL
 `
@@ -394,7 +411,7 @@ const clearUserTelegramID = `-- name: ClearUserTelegramID :one
 UPDATE users
 SET telegram_id = NULL
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until, telegram_blocked_at, daily_reminder_sent_at, matrix_id
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until, telegram_blocked_at, daily_reminder_sent_at, matrix_id, matrix_room_id
 `
 
 func (q *Queries) ClearUserTelegramID(ctx context.Context, id uuid.UUID) (User, error) {
@@ -423,6 +440,7 @@ func (q *Queries) ClearUserTelegramID(ctx context.Context, id uuid.UUID) (User, 
 		&i.TelegramBlockedAt,
 		&i.DailyReminderSentAt,
 		&i.MatrixID,
+		&i.MatrixRoomID,
 	)
 	return i, err
 }
@@ -454,7 +472,7 @@ INSERT INTO users (username, password, role, gender, created_at)
 VALUES (
     $1, $2, $3, $4, NOW()
 )
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until, telegram_blocked_at, daily_reminder_sent_at, matrix_id
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until, telegram_blocked_at, daily_reminder_sent_at, matrix_id, matrix_room_id
 `
 
 type CreateUserParams struct {
@@ -495,6 +513,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.TelegramBlockedAt,
 		&i.DailyReminderSentAt,
 		&i.MatrixID,
+		&i.MatrixRoomID,
 	)
 	return i, err
 }
@@ -648,24 +667,25 @@ func (q *Queries) GetRecentHugsFeed(ctx context.Context, arg GetRecentHugsFeedPa
 }
 
 const getUserAddress = `-- name: GetUserAddress :one
-SELECT telegram_id, matrix_id FROM users WHERE id = $1
+SELECT telegram_id, matrix_id, matrix_room_id FROM users WHERE id = $1
 `
 
 type GetUserAddressRow struct {
-	TelegramID pgtype.Int8
-	MatrixID   pgtype.Text
+	TelegramID   pgtype.Int8
+	MatrixID     pgtype.Text
+	MatrixRoomID pgtype.Text
 }
 
 func (q *Queries) GetUserAddress(ctx context.Context, id uuid.UUID) (GetUserAddressRow, error) {
 	row := q.db.QueryRow(ctx, getUserAddress, id)
 	var i GetUserAddressRow
-	err := row.Scan(&i.TelegramID, &i.MatrixID)
+	err := row.Scan(&i.TelegramID, &i.MatrixID, &i.MatrixRoomID)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
 SELECT 
-    u.id, u.username, u.password, u.role, u.gender, u.banned_at, u.hug_slots, u.created_at, u.display_name, u.telegram_id, u.tag, u.special_tag, u.captcha_cooldown_until, u.captcha_type, u.promoted_until, u.promotion_message, u.promotion_bid, u.vip_remaining_seconds, u.vip_cooldown_until, u.telegram_blocked_at, u.daily_reminder_sent_at, u.matrix_id, 
+    u.id, u.username, u.password, u.role, u.gender, u.banned_at, u.hug_slots, u.created_at, u.display_name, u.telegram_id, u.tag, u.special_tag, u.captcha_cooldown_until, u.captcha_type, u.promoted_until, u.promotion_message, u.promotion_bid, u.vip_remaining_seconds, u.vip_cooldown_until, u.telegram_blocked_at, u.daily_reminder_sent_at, u.matrix_id, u.matrix_room_id, 
     COALESCE(b.amount, 0)::int AS balance,
     COALESCE((
         SELECT AVG(EXTRACT(EPOCH FROM (h.accepted_at - h.created_at)))
@@ -705,6 +725,7 @@ type GetUserByIDRow struct {
 	TelegramBlockedAt    pgtype.Timestamptz
 	DailyReminderSentAt  pgtype.Timestamptz
 	MatrixID             pgtype.Text
+	MatrixRoomID         pgtype.Text
 	Balance              int32
 	AvgResponseTime      float64
 }
@@ -735,6 +756,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (GetUserByIDRow
 		&i.TelegramBlockedAt,
 		&i.DailyReminderSentAt,
 		&i.MatrixID,
+		&i.MatrixRoomID,
 		&i.Balance,
 		&i.AvgResponseTime,
 	)
@@ -743,7 +765,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (GetUserByIDRow
 
 const getUserByTelegramID = `-- name: GetUserByTelegramID :one
 SELECT 
-    u.id, u.username, u.password, u.role, u.gender, u.banned_at, u.hug_slots, u.created_at, u.display_name, u.telegram_id, u.tag, u.special_tag, u.captcha_cooldown_until, u.captcha_type, u.promoted_until, u.promotion_message, u.promotion_bid, u.vip_remaining_seconds, u.vip_cooldown_until, u.telegram_blocked_at, u.daily_reminder_sent_at, u.matrix_id, 
+    u.id, u.username, u.password, u.role, u.gender, u.banned_at, u.hug_slots, u.created_at, u.display_name, u.telegram_id, u.tag, u.special_tag, u.captcha_cooldown_until, u.captcha_type, u.promoted_until, u.promotion_message, u.promotion_bid, u.vip_remaining_seconds, u.vip_cooldown_until, u.telegram_blocked_at, u.daily_reminder_sent_at, u.matrix_id, u.matrix_room_id, 
     COALESCE(b.amount, 0)::int AS balance,
     COALESCE((
         SELECT AVG(EXTRACT(EPOCH FROM (h.accepted_at - h.created_at)))
@@ -783,6 +805,7 @@ type GetUserByTelegramIDRow struct {
 	TelegramBlockedAt    pgtype.Timestamptz
 	DailyReminderSentAt  pgtype.Timestamptz
 	MatrixID             pgtype.Text
+	MatrixRoomID         pgtype.Text
 	Balance              int32
 	AvgResponseTime      float64
 }
@@ -813,6 +836,7 @@ func (q *Queries) GetUserByTelegramID(ctx context.Context, telegramID pgtype.Int
 		&i.TelegramBlockedAt,
 		&i.DailyReminderSentAt,
 		&i.MatrixID,
+		&i.MatrixRoomID,
 		&i.Balance,
 		&i.AvgResponseTime,
 	)
@@ -821,7 +845,7 @@ func (q *Queries) GetUserByTelegramID(ctx context.Context, telegramID pgtype.Int
 
 const getUserByUsername = `-- name: GetUserByUsername :one
 SELECT 
-    u.id, u.username, u.password, u.role, u.gender, u.banned_at, u.hug_slots, u.created_at, u.display_name, u.telegram_id, u.tag, u.special_tag, u.captcha_cooldown_until, u.captcha_type, u.promoted_until, u.promotion_message, u.promotion_bid, u.vip_remaining_seconds, u.vip_cooldown_until, u.telegram_blocked_at, u.daily_reminder_sent_at, u.matrix_id, 
+    u.id, u.username, u.password, u.role, u.gender, u.banned_at, u.hug_slots, u.created_at, u.display_name, u.telegram_id, u.tag, u.special_tag, u.captcha_cooldown_until, u.captcha_type, u.promoted_until, u.promotion_message, u.promotion_bid, u.vip_remaining_seconds, u.vip_cooldown_until, u.telegram_blocked_at, u.daily_reminder_sent_at, u.matrix_id, u.matrix_room_id, 
     COALESCE(b.amount, 0)::int AS balance,
     COALESCE((
         SELECT AVG(EXTRACT(EPOCH FROM (h.accepted_at - h.created_at)))
@@ -861,6 +885,7 @@ type GetUserByUsernameRow struct {
 	TelegramBlockedAt    pgtype.Timestamptz
 	DailyReminderSentAt  pgtype.Timestamptz
 	MatrixID             pgtype.Text
+	MatrixRoomID         pgtype.Text
 	Balance              int32
 	AvgResponseTime      float64
 }
@@ -891,6 +916,7 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (GetUs
 		&i.TelegramBlockedAt,
 		&i.DailyReminderSentAt,
 		&i.MatrixID,
+		&i.MatrixRoomID,
 		&i.Balance,
 		&i.AvgResponseTime,
 	)
@@ -954,6 +980,22 @@ func (q *Queries) IncrementUserSlots(ctx context.Context, id uuid.UUID) (int32, 
 	var hug_slots int32
 	err := row.Scan(&hug_slots)
 	return hug_slots, err
+}
+
+const isMatrixIDTaken = `-- name: IsMatrixIDTaken :one
+SELECT EXISTS(SELECT 1 FROM users WHERE matrix_id = $1 AND id <> $2)
+`
+
+type IsMatrixIDTakenParams struct {
+	MatrixID pgtype.Text
+	ID       uuid.UUID
+}
+
+func (q *Queries) IsMatrixIDTaken(ctx context.Context, arg IsMatrixIDTakenParams) (bool, error) {
+	row := q.db.QueryRow(ctx, isMatrixIDTaken, arg.MatrixID, arg.ID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
 
 const isTelegramIDTaken = `-- name: IsTelegramIDTaken :one
@@ -1306,7 +1348,7 @@ const promoteUser = `-- name: PromoteUser :one
 UPDATE users
 SET promoted_until = $2, promotion_message = $3, promotion_bid = $4
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until, telegram_blocked_at, daily_reminder_sent_at, matrix_id
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until, telegram_blocked_at, daily_reminder_sent_at, matrix_id, matrix_room_id
 `
 
 type PromoteUserParams struct {
@@ -1347,6 +1389,7 @@ func (q *Queries) PromoteUser(ctx context.Context, arg PromoteUserParams) (User,
 		&i.TelegramBlockedAt,
 		&i.DailyReminderSentAt,
 		&i.MatrixID,
+		&i.MatrixRoomID,
 	)
 	return i, err
 }
@@ -1561,11 +1604,26 @@ func (q *Queries) SetCaptchaCooldown(ctx context.Context, arg SetCaptchaCooldown
 	return err
 }
 
+const setMatrixLink = `-- name: SetMatrixLink :exec
+UPDATE users SET matrix_id = $2, matrix_room_id = $3 WHERE id = $1
+`
+
+type SetMatrixLinkParams struct {
+	ID           uuid.UUID
+	MatrixID     pgtype.Text
+	MatrixRoomID pgtype.Text
+}
+
+func (q *Queries) SetMatrixLink(ctx context.Context, arg SetMatrixLinkParams) error {
+	_, err := q.db.Exec(ctx, setMatrixLink, arg.ID, arg.MatrixID, arg.MatrixRoomID)
+	return err
+}
+
 const setUserTelegramID = `-- name: SetUserTelegramID :one
 UPDATE users
 SET telegram_id = $2
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until, telegram_blocked_at, daily_reminder_sent_at, matrix_id
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until, telegram_blocked_at, daily_reminder_sent_at, matrix_id, matrix_room_id
 `
 
 type SetUserTelegramIDParams struct {
@@ -1599,6 +1657,7 @@ func (q *Queries) SetUserTelegramID(ctx context.Context, arg SetUserTelegramIDPa
 		&i.TelegramBlockedAt,
 		&i.DailyReminderSentAt,
 		&i.MatrixID,
+		&i.MatrixRoomID,
 	)
 	return i, err
 }
@@ -1607,7 +1666,7 @@ const setVipCooldown = `-- name: SetVipCooldown :one
 UPDATE users
 SET vip_cooldown_until = $2, vip_remaining_seconds = $3
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until, telegram_blocked_at, daily_reminder_sent_at, matrix_id
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until, telegram_blocked_at, daily_reminder_sent_at, matrix_id, matrix_room_id
 `
 
 type SetVipCooldownParams struct {
@@ -1642,6 +1701,7 @@ func (q *Queries) SetVipCooldown(ctx context.Context, arg SetVipCooldownParams) 
 		&i.TelegramBlockedAt,
 		&i.DailyReminderSentAt,
 		&i.MatrixID,
+		&i.MatrixRoomID,
 	)
 	return i, err
 }
@@ -1650,7 +1710,7 @@ const unbanUser = `-- name: UnbanUser :one
 UPDATE users
 SET banned_at = NULL
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until, telegram_blocked_at, daily_reminder_sent_at, matrix_id
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until, telegram_blocked_at, daily_reminder_sent_at, matrix_id, matrix_room_id
 `
 
 func (q *Queries) UnbanUser(ctx context.Context, id uuid.UUID) (User, error) {
@@ -1679,6 +1739,7 @@ func (q *Queries) UnbanUser(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.TelegramBlockedAt,
 		&i.DailyReminderSentAt,
 		&i.MatrixID,
+		&i.MatrixRoomID,
 	)
 	return i, err
 }
@@ -1703,7 +1764,7 @@ const updateUserSettings = `-- name: UpdateUserSettings :one
 UPDATE users
 SET gender = $2, display_name = $3, tag = $4
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until, telegram_blocked_at, daily_reminder_sent_at, matrix_id
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until, telegram_blocked_at, daily_reminder_sent_at, matrix_id, matrix_room_id
 `
 
 type UpdateUserSettingsParams struct {
@@ -1744,6 +1805,7 @@ func (q *Queries) UpdateUserSettings(ctx context.Context, arg UpdateUserSettings
 		&i.TelegramBlockedAt,
 		&i.DailyReminderSentAt,
 		&i.MatrixID,
+		&i.MatrixRoomID,
 	)
 	return i, err
 }
@@ -1752,7 +1814,7 @@ const updateVipBudget = `-- name: UpdateVipBudget :one
 UPDATE users
 SET vip_remaining_seconds = $2
 WHERE id = $1
-RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until, telegram_blocked_at, daily_reminder_sent_at, matrix_id
+RETURNING id, username, password, role, gender, banned_at, hug_slots, created_at, display_name, telegram_id, tag, special_tag, captcha_cooldown_until, captcha_type, promoted_until, promotion_message, promotion_bid, vip_remaining_seconds, vip_cooldown_until, telegram_blocked_at, daily_reminder_sent_at, matrix_id, matrix_room_id
 `
 
 type UpdateVipBudgetParams struct {
@@ -1786,6 +1848,7 @@ func (q *Queries) UpdateVipBudget(ctx context.Context, arg UpdateVipBudgetParams
 		&i.TelegramBlockedAt,
 		&i.DailyReminderSentAt,
 		&i.MatrixID,
+		&i.MatrixRoomID,
 	)
 	return i, err
 }
