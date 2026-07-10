@@ -4,6 +4,7 @@ import (
 	"context"
 	"go-service-template/internal/jwt"
 	"go-service-template/internal/models"
+	matrixnotify "go-service-template/internal/notify/matrix"
 	userService "go-service-template/internal/service/user"
 	"go-service-template/internal/telegram"
 	v1 "go-service-template/internal/transport/http/v1"
@@ -22,6 +23,7 @@ type service interface {
 	GenerateLinkToken(ctx context.Context, userID uuid.UUID) (string, string, error)
 	UnlinkTelegram(ctx context.Context, userID uuid.UUID) (*models.User, error)
 	GenerateMatrixLinkToken(ctx context.Context, userID uuid.UUID) (string, string, string, error)
+	InitMatrixLogin() (command, botUserID, pollToken string, err error)
 	LoginViaTelegramWidget(ctx context.Context, d userService.TelegramWidgetData) (*models.User, error)
 	UnlinkMatrix(ctx context.Context, userID uuid.UUID) (*models.User, error)
 	SaveRefreshToken(ctx context.Context, jti string, userID uuid.UUID, expiresAtUnix int64) error
@@ -43,6 +45,8 @@ type UserHandler struct {
 	cookieSecure bool
 	loginStore   *telegram.LoginStore
 	botUsername  string
+
+	matrixLoginStore *matrixnotify.LoginStore
 }
 
 func New(svc service, jwtManager *jwt.Manager, cookieSecure bool) *UserHandler {
@@ -54,6 +58,12 @@ func New(svc service, jwtManager *jwt.Manager, cookieSecure bool) *UserHandler {
 func (h *UserHandler) SetTelegramLoginStore(store *telegram.LoginStore, botUsername string) {
 	h.loginStore = store
 	h.botUsername = botUsername
+}
+
+// SetMatrixLoginStore configures the Matrix login store used by the Matrix
+// login poll endpoint. Called after construction.
+func (h *UserHandler) SetMatrixLoginStore(store *matrixnotify.LoginStore) {
+	h.matrixLoginStore = store
 }
 
 func ptr[T any](v T) *T {

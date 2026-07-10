@@ -51,6 +51,7 @@ components:
         - CAPTCHA_REQUIRED
         - NAME_TOO_LONG
         - MATRIX_LINKING_UNAVAILABLE
+        - MATRIX_LOGIN_FAILED
 
     Error:
       type: object
@@ -1151,6 +1152,89 @@ paths:
       operationId: pollTelegramLogin
       description: >
         Polls the status of a Telegram login session. Returns 202 while pending,
+        200 with auth response on success, 403 if banned, 404 if expired/not found.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - poll_token
+              properties:
+                poll_token:
+                  type: string
+              additionalProperties: false
+      responses:
+        '200':
+          description: Login successful
+          headers:
+            Set-Cookie:
+              description: Refresh token cookie
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '202':
+          description: Login session still pending
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                properties:
+                  status:
+                    type: string
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /auth/matrix/init:
+    post:
+      summary: Start a Matrix login session
+      operationId: initMatrixLogin
+      description: >
+        Creates a new Matrix login session. Returns the command the user must
+        send to the bot, the bot user id, and a poll token. The client should
+        show the command and poll /auth/matrix/poll.
+      responses:
+        '200':
+          description: Login session created
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - command
+                  - bot_user_id
+                  - poll_token
+                properties:
+                  command:
+                    type: string
+                    description: Command the user must send to the Matrix bot
+                  bot_user_id:
+                    type: string
+                    description: Matrix user id of the bot to message
+                  poll_token:
+                    type: string
+                    description: Token for polling the login result
+        '503':
+          description: Matrix bot not configured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/matrix/poll:
+    post:
+      summary: Poll for Matrix login result
+      operationId: pollMatrixLogin
+      description: >
+        Polls the status of a Matrix login session. Returns 202 while pending,
         200 with auth response on success, 403 if banned, 404 if expired/not found.
       requestBody:
         required: true

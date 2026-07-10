@@ -131,6 +131,7 @@ func New(ctx context.Context, cfg *config.Config, l *slog.Logger) (*App, error) 
 	// MATRIX_* env vars are set (Provider.Enabled()==false).
 	matrixProvider := notifymatrix.New(a.cfg.Matrix.HomeserverURL, a.cfg.Matrix.UserID, a.cfg.Matrix.AccessToken, a.l)
 	matrixLinkStore := notifymatrix.NewLinkStore()
+	matrixLoginStore := notifymatrix.NewLoginStore()
 	notifyProviders := []notify.Provider{
 		notifytg.New(a.cfg.Telegram.BotToken, a.l),
 		matrixProvider,
@@ -147,11 +148,14 @@ func New(ctx context.Context, cfg *config.Config, l *slog.Logger) (*App, error) 
 	// Link stores for the user service (generating link tokens/commands).
 	userService.SetTelegramLinkStore(tgLinkStore, a.cfg.Telegram.BotUsername)
 	userService.SetMatrixLinkStore(matrixLinkStore, a.cfg.Matrix.UserID)
+	userService.SetMatrixLoginStore(matrixLoginStore, a.cfg.Matrix.UserID)
 	// Bot token used to verify Telegram Login Widget (OAuth) payloads.
 	userService.SetTelegramBotToken(a.cfg.Telegram.BotToken)
 
 	// Telegram login: wire login store + service into bot
 	tgBot.SetLoginStore(tgLoginStore, userService)
+	// Matrix login: wire login store + service into bot
+	matrixBot.SetLoginStore(matrixLoginStore, userService)
 
 	// WebSocket Hub
 	a.hub = ws.NewHub(jwtManager)
@@ -192,6 +196,7 @@ func New(ctx context.Context, cfg *config.Config, l *slog.Logger) (*App, error) 
 	// Handlers
 	userHandler := userhandler.New(userService, jwtManager, a.cfg.JWT.CookieSecure)
 	userHandler.SetTelegramLoginStore(tgLoginStore, a.cfg.Telegram.BotUsername)
+	userHandler.SetMatrixLoginStore(matrixLoginStore)
 	hugHandler := hughandler.New(hugService, userService)
 	adminHandler := adminhandler.New(userService)
 
@@ -478,6 +483,18 @@ func (a *App) initEcho() error {
 			},
 			// Telegram login poll: more lenient (polled every 2 seconds)
 			"/api/v1/auth/telegram/poll": {
+				Rate:  rate.Limit(2),
+				Burst: 5,
+				TTL:   5 * time.Minute,
+			},
+			// Matrix login init: 5 per minute per IP
+			"/api/v1/auth/matrix/init": {
+				Rate:  rate.Every(12 * time.Second),
+				Burst: 5,
+				TTL:   1 * time.Minute,
+			},
+			// Matrix login poll: more lenient (polled every 2 seconds)
+			"/api/v1/auth/matrix/poll": {
 				Rate:  rate.Limit(2),
 				Burst: 5,
 				TTL:   5 * time.Minute,
