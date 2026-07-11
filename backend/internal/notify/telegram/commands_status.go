@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"go-service-template/internal/notify"
+
 	tgmodels "github.com/go-telegram/bot/models"
 )
 
@@ -14,21 +16,24 @@ import (
 func (b *Bot) handleHelp(ctx context.Context, msg *tgmodels.Message) {
 	chatID := msg.Chat.ID
 
-	var sb strings.Builder
-	sb.WriteString("<b>PRODHugs — команды</b>\n\n")
-	sb.WriteString("<b>/me</b> — профиль и последние обнимашки\n")
-	sb.WriteString("<b>/stats</b> — активность за 24 часа\n")
-	sb.WriteString("<b>/daily</b> — забрать ежедневную награду\n")
-	sb.WriteString("<b>/hug</b> — обнять кого-нибудь\n")
-	sb.WriteString("<b>/help</b> — эта справка\n\n")
-	sb.WriteString("<b>Для администраторов</b>\n")
-	sb.WriteString("<b>/grant</b> @user &lt;сумма&gt; — установить баланс\n")
-	sb.WriteString("<b>/userinfo</b> @user — карточка пользователя\n")
-	sb.WriteString("<b>/ban</b> / <b>/unban</b> @user — модерация\n")
-	sb.WriteString("<b>/announce</b> / <b>/unannounce</b> — объявления\n\n")
-	sb.WriteString("<blockquote>Команды для админов доступны только с ролью admin и привязанным Telegram.</blockquote>")
+	doc := notify.New().
+		Heading(1, "PRODHugs — команды").
+		Bold("/me").Text(" — профиль и последние обнимашки").Line().
+		Bold("/stats").Text(" — активность за 24 часа").Line().
+		Bold("/daily").Text(" — забрать ежедневную награду").Line().
+		Bold("/hug").Text(" — обнять кого-нибудь").Line().
+		Bold("/help").Text(" — эта справка").Line().
+		Line().
+		Bold("Для администраторов").Line().
+		Bold("/grant").Text(" @user <сумма> — установить баланс").Line().
+		Bold("/userinfo").Text(" @user — карточка пользователя").Line().
+		Bold("/ban").Text(" / ").Bold("/unban").Text(" @user — модерация").Line().
+		Bold("/announce").Text(" / ").Bold("/unannounce").Text(" — объявления").Line().
+		Line().
+		Quote("Команды для админов доступны только с ролью admin и привязанным Telegram.").
+		Build()
 
-	b.reply(ctx, chatID, sb.String())
+	b.replyRich(ctx, chatID, doc)
 }
 
 // ── /me ────────────────────────────────────────────────────────────────────
@@ -58,19 +63,18 @@ func (b *Bot) handleMe(ctx context.Context, msg *tgmodels.Message) {
 		hugs = nil
 	}
 
-	var sb strings.Builder
-	fmt.Fprintf(&sb, "<b>%s</b>", htmlEscape(displayName(user)))
+	title := displayName(user)
 	if user.DisplayName != nil && *user.DisplayName != "" {
-		fmt.Fprintf(&sb, " · @%s", htmlEscape(user.Username))
+		title = fmt.Sprintf("%s · @%s", displayName(user), user.Username)
 	}
-	sb.WriteString("\n\n")
+	doc := notify.New().Heading(1, title)
 
-	fmt.Fprintf(&sb, "Ранг: <b>%s</b>\n", htmlEscape(stats.Rank))
-	fmt.Fprintf(&sb, "Всего обнимашек: %d (отдано %d, принято %d)\n",
-		stats.TotalHugs, stats.HugsGiven, stats.HugsReceived)
+	doc.Text("Ранг: ").Bold(stats.Rank).Line()
+	doc.Text(fmt.Sprintf("Всего обнимашек: %d (отдано %d, принято %d)",
+		stats.TotalHugs, stats.HugsGiven, stats.HugsReceived))
 
 	if len(hugs) > 0 {
-		sb.WriteString("\n<b>Последние обнимашки:</b>\n")
+		doc.Line().Line().Heading(2, "Последние обнимашки")
 		for _, h := range hugs {
 			var direction, otherName string
 			var otherDN *string
@@ -87,18 +91,14 @@ func (b *Bot) handleMe(ctx context.Context, msg *tgmodels.Message) {
 			if otherDN != nil && *otherDN != "" {
 				name = *otherDN
 			}
-			fmt.Fprintf(&sb, "  %s %s · %s\n",
-				direction,
-				htmlEscape(name),
-				hugTypeShortLabel(h.HugType),
-			)
+			doc.Text(fmt.Sprintf("  %s %s · %s", direction, name, hugTypeShortLabel(h.HugType))).Line()
 		}
-		sb.WriteString("\n<blockquote>Комментарии не показываю — они приватные для получателя.</blockquote>")
+		doc.Quote("Комментарии не показываю — они приватные для получателя.")
 	} else {
-		sb.WriteString("\nПока что обнимашек нет — самое время кому-нибудь написать!")
+		doc.Line().Line().Text("Пока что обнимашек нет — самое время кому-нибудь написать!")
 	}
 
-	b.reply(ctx, chatID, sb.String())
+	b.replyRich(ctx, chatID, doc.Build())
 }
 
 // ── /stats ────────────────────────────────────────────────────────────────
@@ -121,36 +121,35 @@ func (b *Bot) handleStats(ctx context.Context, msg *tgmodels.Message) {
 		total += h.Count
 	}
 
-	var sb strings.Builder
-	sb.WriteString("<b>Обнимашки за последние 24 часа</b>\n\n")
-	fmt.Fprintf(&sb, "Всего принято: <b>%d</b>\n", total)
+	doc := notify.New().Heading(1, "Обнимашки за 24 часа")
+	doc.Text("Всего принято: ").Bold(fmt.Sprintf("%d", total))
 
 	if total == 0 {
-		sb.WriteString("\n<i>Пока тихо — никто никого не обнял за сутки.</i>")
-		b.reply(ctx, chatID, sb.String())
+		doc.Line().Line().Italic("Пока тихо — никто никого не обнял за сутки.")
+		b.replyRich(ctx, chatID, doc.Build())
 		return
 	}
 
 	// Sparkline-style ASCII bars. Each bar is at most 8 chars wide,
 	// scaled to the busiest hour.
-	var max int64 = 1
+	var maxCount int64 = 1
 	for _, h := range activity {
-		if h.Count > max {
-			max = h.Count
+		if h.Count > maxCount {
+			maxCount = h.Count
 		}
 	}
 	const barWidth = 8
-	sb.WriteString("\n<code>")
+	var sb strings.Builder
 	for _, h := range activity {
 		hour := h.Timestamp.Format("15:04")
-		bars := int((float64(h.Count) / float64(max)) * float64(barWidth))
+		bars := int((float64(h.Count) / float64(maxCount)) * float64(barWidth))
 		if h.Count > 0 && bars == 0 {
 			bars = 1
 		}
 		fmt.Fprintf(&sb, "%s %s %d\n", hour, strings.Repeat("█", bars)+strings.Repeat("·", barWidth-bars), h.Count)
 	}
-	sb.WriteString("</code>")
-	b.reply(ctx, chatID, sb.String())
+	doc.Line().Line().CodeBlock(strings.TrimRight(sb.String(), "\n"), "")
+	b.replyRich(ctx, chatID, doc.Build())
 }
 
 // ── /daily ────────────────────────────────────────────────────────────────
@@ -172,15 +171,16 @@ func (b *Bot) handleDaily(ctx context.Context, msg *tgmodels.Message) {
 		return
 	}
 
-	var sb strings.Builder
+	doc := notify.New().Heading(1, "🎁 Ежедневная награда")
 	if already {
-		fmt.Fprintf(&sb, "На сегодня награда уже у вас. Серия: <b>%d</b> дн.\n", streak)
-		fmt.Fprintf(&sb, "Возвращайтесь завтра — я напомню сама.")
+		doc.Text("На сегодня награда уже у вас. Серия: ").Bold(fmt.Sprintf("%d", streak)).Text(" дн.").Line()
+		doc.Text("Возвращайтесь завтра — я напомню сама.")
 	} else {
-		fmt.Fprintf(&sb, "Получено <b>+%d</b> обниманий. Серия: <b>%d</b> дн.\n", amount, streak)
-		fmt.Fprintf(&sb, "Баланс: <b>%d</b>.", newBalance)
+		doc.Text("Получено ").Bold(fmt.Sprintf("+%d", amount)).Text(" обниманий. Серия: ").
+			Bold(fmt.Sprintf("%d", streak)).Text(" дн.").Line()
+		doc.Text("Баланс: ").Bold(fmt.Sprintf("%d", newBalance)).Text(".")
 	}
-	b.reply(ctx, chatID, sb.String())
+	b.replyRich(ctx, chatID, doc.Build())
 }
 
 // hugTypeShortLabel returns a tiny label for /me's hug list.

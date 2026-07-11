@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"go-service-template/internal/models"
+	"go-service-template/internal/notify"
 
 	tgmodels "github.com/go-telegram/bot/models"
 	"github.com/google/uuid"
@@ -49,7 +50,9 @@ func (b *Bot) handleAnnounce(ctx context.Context, msg *tgmodels.Message) {
 		b.reply(ctx, chatID, "Сервис объявлений отключён.")
 		return
 	}
-	b.reply(ctx, chatID, fmt.Sprintf("Объявление создано. ID: <code>%s</code>", ann.ID))
+	doc := notify.New().Heading(1, "📢 Объявление создано").
+		Text("ID: ").Code(ann.ID.String()).Build()
+	b.replyRich(ctx, chatID, doc)
 }
 
 func (b *Bot) handleUnannounce(ctx context.Context, msg *tgmodels.Message) {
@@ -79,7 +82,7 @@ func (b *Bot) handleUnannounce(ctx context.Context, msg *tgmodels.Message) {
 		b.reply(ctx, chatID, "Не получилось снять объявление: "+friendlyError(err))
 		return
 	}
-	b.reply(ctx, chatID, "Объявление снято.")
+	b.replyRich(ctx, chatID, notify.New().Heading(1, "📢 Объявление снято").Build())
 }
 
 // requireAdmin resolves the caller and verifies they're an admin with
@@ -150,16 +153,18 @@ func (b *Bot) handleBan(ctx context.Context, msg *tgmodels.Message, ban bool) {
 	}
 
 	verb := "забанен"
+	title := "🚫 Пользователь забанен"
 	if !ban {
 		verb = "разбанен"
+		title = "✅ Пользователь разбанен"
 	}
 	state := "активен"
 	if updated != nil && updated.BannedAt != nil {
 		state = "забанен"
 	}
-	b.reply(ctx, chatID,
-		fmt.Sprintf("Готово. <b>%s</b> %s. Сейчас: %s.",
-			htmlEscape(displayName(target)), verb, state))
+	doc := notify.New().Heading(1, title).
+		Bold(displayName(target)).Text(" " + verb + ". Сейчас: ").Bold(state).Text(".").Build()
+	b.replyRich(ctx, chatID, doc)
 	b.logger.Info("telegram bot: moderation action",
 		"actor", caller.ID, "target", target.ID, "ban", ban)
 }
@@ -220,7 +225,9 @@ func (b *Bot) handleGrant(ctx context.Context, msg *tgmodels.Message) {
 		set = bal.Amount
 	}
 	b.logger.Info("telegram bot: /grant", "actor", caller.ID, "target", target.ID, "amount", set)
-	b.reply(ctx, chatID, fmt.Sprintf("Баланс <b>%s</b> установлен: <b>%d</b>.", htmlEscape(displayName(target)), set))
+	doc := notify.New().Heading(1, "💰 Баланс обновлён").
+		Text("Баланс ").Bold(displayName(target)).Text(" установлен: ").Bold(fmt.Sprintf("%d", set)).Text(".").Build()
+	b.replyRich(ctx, chatID, doc)
 }
 
 func (b *Bot) handleUserinfo(ctx context.Context, msg *tgmodels.Message) {
@@ -250,15 +257,15 @@ func (b *Bot) handleUserinfo(ctx context.Context, msg *tgmodels.Message) {
 	if target.MatrixID != nil {
 		matrixLinked = "да"
 	}
-	banned := ""
-	if target.BannedAt != nil {
-		banned = "\nСтатус: <b>забанен</b>"
-	}
 
-	b.reply(ctx, chatID, fmt.Sprintf(
-		"<b>%s</b> · @%s\nРоль: <b>%s</b>\nБаланс: <b>%d</b>\nTelegram: %s · Matrix: %s%s",
-		htmlEscape(displayName(target)), htmlEscape(target.Username),
-		htmlEscape(target.Role), balAmount, tgLinked, matrixLinked, banned))
+	doc := notify.New().Heading(1, fmt.Sprintf("%s · @%s", displayName(target), target.Username))
+	doc.Text("Роль: ").Bold(target.Role).Line()
+	doc.Text("Баланс: ").Bold(fmt.Sprintf("%d", balAmount)).Line()
+	doc.Text(fmt.Sprintf("Telegram: %s · Matrix: %s", tgLinked, matrixLinked))
+	if target.BannedAt != nil {
+		doc.Line().Text("Статус: ").Bold("забанен")
+	}
+	b.replyRich(ctx, chatID, doc.Build())
 }
 
 // resolveModerationTarget figures out who the command is acting on. Returns

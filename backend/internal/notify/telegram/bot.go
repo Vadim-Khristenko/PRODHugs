@@ -4,11 +4,14 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"go-service-template/internal/models"
+	"go-service-template/internal/notify"
+	"go-service-template/internal/notify/richtext"
 	legacytg "go-service-template/internal/telegram"
 
 	tgbot "github.com/go-telegram/bot"
@@ -90,6 +93,7 @@ type Bot struct {
 	userRepo    botUserRepo
 	hugSvc      hugAcceptor
 	announceSvc botAnnouncementSvc
+	provider    *Provider
 	logger      *slog.Logger
 	enabled     bool
 
@@ -136,13 +140,14 @@ func (b *Bot) popPendingComment(initiatorTG int64, targetID uuid.UUID) (pendingH
 
 // NewBot creates a new inbound Telegram bot. If the client is disabled (no
 // token), Run() is a no-op and replies fall back to the raw HTTP client.
-func NewBot(client *legacytg.Client, linkStore *legacytg.LinkStore, userRepo botUserRepo, hugSvc hugAcceptor, announceSvc botAnnouncementSvc, logger *slog.Logger) *Bot {
+func NewBot(client *legacytg.Client, linkStore *legacytg.LinkStore, userRepo botUserRepo, hugSvc hugAcceptor, announceSvc botAnnouncementSvc, provider *Provider, logger *slog.Logger) *Bot {
 	b := &Bot{
 		client:          client,
 		linkStore:       linkStore,
 		userRepo:        userRepo,
 		hugSvc:          hugSvc,
 		announceSvc:     announceSvc,
+		provider:        provider,
 		logger:          logger,
 		pendingComments: make(map[string]pendingHugComment),
 	}
@@ -451,6 +456,32 @@ func (b *Bot) reply(ctx context.Context, chatID int64, text string) {
 	})
 	if err != nil {
 		b.logger.Error("telegram bot: failed to send message", "chat_id", chatID, "error", err)
+	}
+}
+
+// replyRich sends a richtext message via the provider (sendRichMessage), so
+// command replies get the full rich treatment (real <h1> headings). Falls back
+// to a classic HTML send through the library if the provider errors.
+func (b *Bot) replyRich(ctx context.Context, chatID int64, doc richtext.Doc) {
+	if b.provider == nil {
+		b.reply(ctx, chatID, notify.RenderTelegram(doc))
+		return
+	}
+	if _, err := b.provider.Send(ctx, strconv.FormatInt(chatID, 10), notify.Message{Body: doc}); err != nil {
+		b.logger.Warn("telegram bot: rich reply failed, falling back", "error", err)
+		b.reply(ctx, chatID, notify.RenderTelegram(doc)) // classic fallback via library
+	}
+}
+
+// replyRichKb sends a richtext message with an inline keyboard via the
+// provider. The buttons carry their Action verbatim as callback_data.
+func (b *Bot) replyRichKb(ctx context.Context, chatID int64, doc richtext.Doc, buttons [][]notify.Button) {
+	if b.provider == nil {
+		b.logger.Warn("telegram bot: rich reply with keyboard requested but provider is nil")
+		return
+	}
+	if _, err := b.provider.Send(ctx, strconv.FormatInt(chatID, 10), notify.Message{Body: doc, Buttons: buttons}); err != nil {
+		b.logger.Warn("telegram bot: rich reply failed", "error", err)
 	}
 }
 

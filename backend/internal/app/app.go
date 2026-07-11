@@ -132,15 +132,16 @@ func New(ctx context.Context, cfg *config.Config, l *slog.Logger) (*App, error) 
 	matrixProvider := notifymatrix.New(a.cfg.Matrix.HomeserverURL, a.cfg.Matrix.UserID, a.cfg.Matrix.AccessToken, a.l)
 	matrixLinkStore := notifymatrix.NewLinkStore()
 	matrixLoginStore := notifymatrix.NewLoginStore()
+	tgProvider := notifytg.New(a.cfg.Telegram.BotToken, a.l)
 	notifyProviders := []notify.Provider{
-		notifytg.New(a.cfg.Telegram.BotToken, a.l),
+		tgProvider,
 		matrixProvider,
 	}
 	notifyRouter := notify.NewRouter(notifyProviders, userRepo, notifRefRepo, userRepo, a.l)
 	notifier := notify.NewNotifier(notifyRouter, userRepo, a.l)
 
 	// Inbound Telegram bot (long-polling): commands + button callbacks.
-	tgBot := notifytg.NewBot(tgClient, tgLinkStore, userRepo, hugService, userService, a.l)
+	tgBot := notifytg.NewBot(tgClient, tgLinkStore, userRepo, hugService, userService, tgProvider, a.l)
 
 	// Inbound Matrix bot (sync loop): auto-joins DMs, consumes link commands.
 	matrixBot := notifymatrix.NewBot(matrixProvider, userRepo, hugService, userService, notifRefRepo, matrixLinkStore, a.l)

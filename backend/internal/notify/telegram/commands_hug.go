@@ -9,6 +9,7 @@ import (
 	"unicode/utf8"
 
 	"go-service-template/internal/models"
+	"go-service-template/internal/notify"
 
 	tgbot "github.com/go-telegram/bot"
 	tgmodels "github.com/go-telegram/bot/models"
@@ -63,20 +64,14 @@ func (b *Bot) handleHug(ctx context.Context, msg *tgmodels.Message) {
 		})
 	}
 
-	keyboard := hugTypePickerKeyboard(msg.From.ID, target.ID)
-	prompt := fmt.Sprintf("Выберите тип обнимашки для <b>%s</b>:", htmlEscape(displayName(target)))
+	buttons := hugTypePickerButtons(msg.From.ID, target.ID)
+	doc := notify.New().Heading(1, "🤗 Выберите тип обнимашки").
+		Text("Для ").Bold(displayName(target)).Text(":").Build()
 	if !b.enabled {
-		_ = b.client.SendMessage(chatID, prompt)
+		_ = b.client.SendMessage(chatID, "Выберите тип обнимашки для "+displayName(target)+":")
 		return
 	}
-	if _, err := b.tg.SendMessage(ctx, &tgbot.SendMessageParams{
-		ChatID:      chatID,
-		Text:        prompt,
-		ParseMode:   tgmodels.ParseModeHTML,
-		ReplyMarkup: keyboard,
-	}); err != nil {
-		b.logger.Error("telegram bot: /hug picker send failed", "error", err)
-	}
+	b.replyRichKb(ctx, chatID, doc, buttons)
 }
 
 // resolveHugTargetWithMode resolves /hug's target and reports whether the
@@ -136,25 +131,23 @@ func extractHugComment(text string, usedReply bool) string {
 	return s
 }
 
-// hugTypePickerKeyboard returns the inline keyboard for the /hug picker.
-// Callback payloads use the unified action-token format
+// hugTypePickerButtons returns the provider-agnostic inline keyboard for the
+// /hug picker. Callback payloads use the unified action-token format
 // "hug.pick:<type>:<initiator_tg_id>:<target_user_id>" so the callback
 // dispatcher (parseAction) routes them alongside notification buttons. The
 // initiator id lets us verify it's the original sender clicking — Telegram
 // groups happily pass anyone's clicks back to us.
-func hugTypePickerKeyboard(initiatorTGID int64, targetUserID uuid.UUID) *tgmodels.InlineKeyboardMarkup {
-	mk := func(label, hugType string) tgmodels.InlineKeyboardButton {
-		return tgmodels.InlineKeyboardButton{
-			Text:         label,
-			CallbackData: fmt.Sprintf("hug.pick:%s:%d:%s", hugType, initiatorTGID, targetUserID.String()),
+func hugTypePickerButtons(initiatorTGID int64, targetUserID uuid.UUID) [][]notify.Button {
+	mk := func(label, hugType string) notify.Button {
+		return notify.Button{
+			Label:  label,
+			Action: fmt.Sprintf("hug.pick:%s:%d:%s", hugType, initiatorTGID, targetUserID.String()),
 		}
 	}
-	return &tgmodels.InlineKeyboardMarkup{
-		InlineKeyboard: [][]tgmodels.InlineKeyboardButton{
-			{mk("Обычная", "standard"), mk("Медвежья", "bear")},
-			{mk("Тёплая", "warm"), mk("Душевная", "soul")},
-			{mk("Групповая", "group")},
-		},
+	return [][]notify.Button{
+		{mk("Обычная", "standard"), mk("Медвежья", "bear")},
+		{mk("Тёплая", "warm"), mk("Душевная", "soul")},
+		{mk("Групповая", "group")},
 	}
 }
 
