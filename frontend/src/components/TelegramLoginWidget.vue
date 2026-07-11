@@ -12,16 +12,17 @@
  */
 
 import { ref, onMounted, onUnmounted } from 'vue'
+import type { TelegramWidgetUser } from '@/lib/telegram'
 
 // Extend Window so TypeScript is happy with the global callback.
 declare global {
   interface Window {
-    onTelegramAuth?: (user: any) => void
+    onTelegramAuth?: (user: TelegramWidgetUser) => void
   }
 }
 
 const emit = defineEmits<{
-  (e: 'auth', user: any): void
+  (e: 'auth', user: TelegramWidgetUser): void
 }>()
 
 const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string | undefined
@@ -32,7 +33,7 @@ onMounted(() => {
   if (!botUsername || !container.value) return
 
   // Register global callback — Telegram widget calls this on successful auth.
-  window.onTelegramAuth = (user: any) => {
+  window.onTelegramAuth = (user: TelegramWidgetUser) => {
     emit('auth', user)
   }
 

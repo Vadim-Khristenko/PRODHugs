@@ -6,6 +6,7 @@ import { useTelegramLogin } from '@/composables/useTelegramLogin'
 import { useMatrixLogin } from '@/composables/useMatrixLogin'
 import { authApi } from '@/api/client'
 import { setAccessToken } from '@/lib/token'
+import type { TelegramWidgetUser } from '@/lib/telegram'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -79,7 +80,7 @@ async function handleLogin() {
   }
 }
 
-async function handleWidgetAuth(user: any) {
+async function handleWidgetAuth(user: TelegramWidgetUser) {
   widgetError.value = null
   try {
     const res = await authApi.telegramWidgetLogin(user)

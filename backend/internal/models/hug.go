@@ -17,11 +17,11 @@ const (
 
 // Hug type constants
 const (
-	HugTypeStandard = "standard"
-	HugTypeBear     = "bear"
-	HugTypeGroup    = "group"
-	HugTypeWarm     = "warm"
-	HugTypeSoul     = "soul"
+	HugTypeStandard  = "standard"
+	HugTypeBear      = "bear"
+	HugTypeGroup     = "group"
+	HugTypeWarm      = "warm"
+	HugTypeSoul      = "soul"
 	HugTypeAgressive = "agressive"
 )
 
