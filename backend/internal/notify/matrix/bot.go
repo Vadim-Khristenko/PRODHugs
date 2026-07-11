@@ -294,31 +294,33 @@ func parseLinkCommand(body string) (token string, ok bool) {
 	return fields[1], true
 }
 
-// handleMessage is the "/"-prefix command router. Familiar with Telegram, the
-// bot uses the same slash commands; non-command messages are ignored.
+// handleMessage is the "!"-prefix command router. Matrix commands use "!"
+// rather than "/" because several popular Matrix clients reserve the leading
+// slash for their own client-side commands and never send them to the bot.
+// Non-command messages are ignored.
 func (b *Bot) handleMessage(ctx context.Context, roomID, sender, body string) {
 	text := strings.TrimSpace(body)
-	if !strings.HasPrefix(text, "/") {
+	if !strings.HasPrefix(text, "!") {
 		return
 	}
 	fields := strings.Fields(text)
 	cmd := strings.ToLower(fields[0])
 	switch cmd {
-	case "/start", "/help":
+	case "!start", "!help":
 		b.handleHelp(ctx, roomID)
-	case "/link":
+	case "!link":
 		b.handleLink(ctx, roomID, sender, fields)
-	case "/login":
+	case "!login":
 		b.handleLoginCmd(ctx, roomID, sender, fields)
-	case "/me":
+	case "!me":
 		b.handleMe(ctx, roomID, sender)
-	case "/stats":
+	case "!stats":
 		b.handleStats(ctx, roomID)
-	case "/daily":
+	case "!daily":
 		b.handleDaily(ctx, roomID, sender)
-	case "/grant":
+	case "!grant":
 		b.handleGrant(ctx, roomID, sender, fields)
-	case "/userinfo":
+	case "!userinfo":
 		b.handleUserinfo(ctx, roomID, sender, fields)
 	}
 }

@@ -14,7 +14,7 @@ import (
 
 // notLinkedMsg is the shared reply when a command needs a linked account but
 // the sender's Matrix id isn't linked yet.
-const notLinkedMsg = "Ваш Matrix пока не привязан — используйте /link или привяжите через настройки на сайте."
+const notLinkedMsg = "Ваш Matrix пока не привязан — используйте !link или привяжите через настройки на сайте."
 
 // displayName returns the user's display name, falling back to username.
 func displayName(u *models.User) string {
@@ -61,16 +61,16 @@ func (b *Bot) handleHelp(ctx context.Context, roomID string) {
 	doc := notify.New().
 		Heading(3, "PRODHugs — команды").
 		Line().
-		Bold("/help").Text(" — эта справка").Line().
-		Bold("/link <токен>").Text(" — привязать Matrix к аккаунту").Line().
-		Bold("/login <токен>").Text(" — войти на сайт через Matrix").Line().
-		Bold("/me").Text(" — профиль и последние обнимашки").Line().
-		Bold("/stats").Text(" — активность за 24 часа").Line().
-		Bold("/daily").Text(" — забрать ежедневную награду").Line().
+		Bold("!help").Text(" — эта справка").Line().
+		Bold("!link <токен>").Text(" — привязать Matrix к аккаунту").Line().
+		Bold("!login <токен>").Text(" — войти на сайт через Matrix").Line().
+		Bold("!me").Text(" — профиль и последние обнимашки").Line().
+		Bold("!stats").Text(" — активность за 24 часа").Line().
+		Bold("!daily").Text(" — забрать ежедневную награду").Line().
 		Line().
 		Bold("Для администраторов").Line().
-		Bold("/grant @user <сумма>").Text(" — установить баланс").Line().
-		Bold("/userinfo @user").Text(" — карточка пользователя").Line().
+		Bold("!grant @user <сумма>").Text(" — установить баланс").Line().
+		Bold("!userinfo @user").Text(" — карточка пользователя").Line().
 		Line().
 		Quote("Команды для админов доступны только с ролью admin.").
 		Line().
@@ -126,12 +126,12 @@ func (b *Bot) handleGrant(ctx context.Context, roomID, sender string, fields []s
 
 	amount, ok := grantAmountArg(fields)
 	if !ok {
-		b.reply(ctx, roomID, "Сколько начислить? /grant @user <сумма>.")
+		b.reply(ctx, roomID, "Сколько начислить? !grant @user <сумма>.")
 		return
 	}
 	target, ok := b.resolveTarget(ctx, fields)
 	if !ok {
-		b.reply(ctx, roomID, "Не понимаю, кому. Напишите /grant @user <сумма>.")
+		b.reply(ctx, roomID, "Не понимаю, кому. Напишите !grant @user <сумма>.")
 		return
 	}
 
@@ -159,7 +159,7 @@ func (b *Bot) handleUserinfo(ctx context.Context, roomID, sender string, fields 
 	}
 	target, ok := b.resolveTarget(ctx, fields)
 	if !ok {
-		b.reply(ctx, roomID, "О ком? Напишите /userinfo @user.")
+		b.reply(ctx, roomID, "О ком? Напишите !userinfo @user.")
 		return
 	}
 

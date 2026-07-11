@@ -86,7 +86,7 @@ func (s *service) GenerateMatrixLinkToken(ctx context.Context, userID uuid.UUID)
 		return "", "", "", fmt.Errorf("generate matrix link token: %w", err)
 	}
 
-	command := "link " + token
+	command := "!link " + token
 	return token, command, s.matrixBotUserID, nil
 }
 

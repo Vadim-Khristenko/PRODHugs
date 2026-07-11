@@ -24,7 +24,7 @@ func (s *service) InitMatrixLogin() (command, botUserID, pollToken string, err e
 		return "", "", "", fmt.Errorf("create matrix login session: %w", err)
 	}
 
-	command = "/login " + botToken
+	command = "!login " + botToken
 	return command, s.matrixLoginBotUserID, pollToken, nil
 }
 
