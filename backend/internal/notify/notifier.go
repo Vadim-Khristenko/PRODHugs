@@ -32,9 +32,10 @@ func (n *Notifier) NotifyHugSuggestion(ctx context.Context, receiverID, hugID, g
 		return
 	}
 	name := displayName(giver)
-	b := New().Text("🤗 ").Bold(name).Text(" " + hugTypeSuggestionPhrase(hugType) + "!")
+	b := New().Heading(1, "🤗 Новое объятие").
+		Bold(name).Text(" " + hugTypeSuggestionPhrase(hugType) + "!")
 	if comment != nil && *comment != "" {
-		b.Line().Line().Text("💬 ").Italic(*comment)
+		b.Line().Quote("💬 " + *comment)
 	}
 	msg := Message{
 		Body: b.Build(),
@@ -71,17 +72,19 @@ func (n *Notifier) NotifyHugCompleted(ctx context.Context, giverID, receiverID, 
 	}
 	receiverVerb := genderVerb(receiver.Gender, "принял", "приняла", "принял(а)")
 
-	// Giver message: "🎉 <b>receiver</b> <verb> <hugWord>! <coins> [plural]"
-	gb := New().Text("🎉 ").Bold(displayName(receiver)).
-		Text(" " + receiverVerb + " " + hugWord + "! " + giverCoinText)
+	// Giver message: heading + "<b>receiver</b> <verb> <hugWord>! <coins> [plural]"
+	gb := New().Heading(1, "🎉 Обнялись!").
+		Bold(displayName(receiver)).
+		Text(" " + receiverVerb + " " + hugWord + "! ").Bold(giverCoinText)
 	if comment == nil {
 		gb.Text(" " + pluralObnimani(int(totalCoins)))
 	}
-	// Receiver message: "🎉 Вы обнялись с <b>giver</b>! <coins> <plural>"
-	rb := New().Text("🎉 Вы обнялись с ").Bold(displayName(giver)).
-		Text("! " + coinText + " " + pluralObnimani(int(totalCoins)))
+	// Receiver message: heading + "Вы обнялись с <b>giver</b>! <coins> <plural>"
+	rb := New().Heading(1, "🎉 Обнялись!").
+		Text("Вы обнялись с ").Bold(displayName(giver)).
+		Text("! ").Bold(coinText).Text(" " + pluralObnimani(int(totalCoins)))
 	if comment != nil && *comment != "" {
-		rb.Line().Line().Text("💬 ").Italic(*comment)
+		rb.Line().Quote("💬 " + *comment)
 	}
 
 	// Completion notices are terminal — never edited — so they don't record a
@@ -102,7 +105,8 @@ func (n *Notifier) NotifyHugDeclined(ctx context.Context, giverID, receiverID, h
 		return
 	}
 	verb := genderVerb(receiver.Gender, "отклонил", "отклонила", "отклонил(а)")
-	body := New().Text("😔 ").Bold(displayName(receiver)).Text(" " + verb + " объятие").Build()
+	body := New().Heading(1, "😔 Объятие отклонено").
+		Bold(displayName(receiver)).Text(" " + verb + " объятие.").Build()
 	n.r.Notify(ctx, giverID, Message{Body: body})
 	n.r.EditByEvent(ctx, "hug_suggestion", hugID, Message{Body: New().Text("🤗 Обнимашка отклонена ❌").Build()})
 }
@@ -117,6 +121,7 @@ func (n *Notifier) NotifyHugCancelled(ctx context.Context, hugID uuid.UUID) {
 
 // NotifyDailyReminder pings a user to claim their daily reward.
 func (n *Notifier) NotifyDailyReminder(ctx context.Context, userID uuid.UUID) {
-	body := New().Text("🎁 Не забудьте забрать ежедневную награду сегодня — загляните в приложение!").Build()
+	body := New().Heading(1, "🎁 Ежедневная награда").
+		Text("Не забудьте забрать ежедневную награду сегодня — загляните в приложение!").Build()
 	n.r.Notify(ctx, userID, Message{Body: body})
 }
