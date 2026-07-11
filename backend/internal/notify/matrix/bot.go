@@ -354,7 +354,8 @@ func (b *Bot) handleLink(ctx context.Context, roomID, sender string, fields []st
 		return
 	}
 	b.logger.Info("matrix bot: account linked", "user_id", userID, "matrix_id", sender)
-	b.reply(ctx, roomID, "✅ Аккаунт привязан! Уведомления об обнимашках будут приходить сюда.")
+	b.replyDoc(ctx, roomID, notify.New().Heading(1, "✅ Аккаунт привязан").
+		Text("Уведомления об обнимашках будут приходить сюда.").Build())
 }
 
 // handleLoginCmd consumes a "/login <botToken>" command and authenticates (or
@@ -383,7 +384,8 @@ func (b *Bot) handleLoginCmd(ctx context.Context, roomID, sender string, fields 
 	}
 	b.loginStore.AuthenticateSession(pollToken, user.ID)
 	b.logger.Info("matrix bot: login successful", "user_id", user.ID, "matrix_id", sender)
-	b.reply(ctx, roomID, "✅ Вход выполнен! Вернитесь на сайт.")
+	b.replyDoc(ctx, roomID, notify.New().Heading(1, "✅ Вход выполнен").
+		Text("Вернитесь на сайт.").Build())
 }
 
 // reply sends a plain notice into a room via the provider.

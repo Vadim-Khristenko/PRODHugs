@@ -59,8 +59,7 @@ func (b *Bot) requireAdmin(ctx context.Context, roomID, sender string) (*models.
 // handleHelp sends a richtext help card listing the slash commands.
 func (b *Bot) handleHelp(ctx context.Context, roomID string) {
 	doc := notify.New().
-		Heading(3, "PRODHugs — команды").
-		Line().
+		Heading(1, "PRODHugs — команды").
 		Bold("!help").Text(" — эта справка").Line().
 		Bold("!link <токен>").Text(" — привязать Matrix к аккаунту").Line().
 		Bold("!login <токен>").Text(" — войти на сайт через Matrix").Line().
@@ -68,7 +67,7 @@ func (b *Bot) handleHelp(ctx context.Context, roomID string) {
 		Bold("!stats").Text(" — активность за 24 часа").Line().
 		Bold("!daily").Text(" — забрать ежедневную награду").Line().
 		Line().
-		Bold("Для администраторов").Line().
+		Heading(2, "Для администраторов").
 		Bold("!grant @user <сумма>").Text(" — установить баланс").Line().
 		Bold("!userinfo @user").Text(" — карточка пользователя").Line().
 		Line().
@@ -146,7 +145,7 @@ func (b *Bot) handleGrant(ctx context.Context, roomID, sender string, fields []s
 		set = bal.Amount
 	}
 	b.logger.Info("matrix bot: /grant", "actor", caller.ID, "target", target.ID, "amount", set)
-	doc := notify.New().
+	doc := notify.New().Heading(1, "💰 Баланс обновлён").
 		Text("Баланс ").Bold(displayName(target)).Text(" установлен: ").Bold(fmt.Sprintf("%d", set)).Text(".").
 		Build()
 	b.replyDoc(ctx, roomID, doc)
@@ -179,13 +178,12 @@ func (b *Bot) handleUserinfo(ctx context.Context, roomID, sender string, fields 
 		matrixLinked = "да"
 	}
 
-	doc := notify.New()
-	doc.Bold(displayName(target)).Text(" · @" + target.Username).Line()
+	doc := notify.New().Heading(1, displayName(target)+" · @"+target.Username)
 	doc.Text("Роль: ").Bold(target.Role).Line()
 	doc.Text("Баланс: ").Bold(fmt.Sprintf("%d", balAmount)).Line()
 	doc.Text(fmt.Sprintf("Telegram: %s · Matrix: %s", tgLinked, matrixLinked))
 	if target.BannedAt != nil {
-		doc.Line().Bold("Забанен")
+		doc.Line().Text("Статус: ").Bold("забанен")
 	}
 	b.replyDoc(ctx, roomID, doc.Build())
 }
@@ -216,19 +214,18 @@ func (b *Bot) handleMe(ctx context.Context, roomID, sender string) {
 		hugs = nil
 	}
 
-	doc := notify.New()
-	doc.Bold(displayName(user))
+	title := displayName(user)
 	if user.DisplayName != nil && *user.DisplayName != "" {
-		doc.Text(" · @" + user.Username)
+		title = displayName(user) + " · @" + user.Username
 	}
-	doc.Line().Line()
+	doc := notify.New().Heading(1, title)
 
 	doc.Text("Ранг: ").Bold(stats.Rank).Line()
 	doc.Text(fmt.Sprintf("Всего обнимашек: %d (отдано %d, принято %d)",
-		stats.TotalHugs, stats.HugsGiven, stats.HugsReceived)).Line()
+		stats.TotalHugs, stats.HugsGiven, stats.HugsReceived))
 
 	if len(hugs) > 0 {
-		doc.Line().Bold("Последние обнимашки:").Line()
+		doc.Line().Line().Heading(2, "Последние обнимашки")
 		for _, h := range hugs {
 			var direction, otherName string
 			var otherDN *string
@@ -269,8 +266,8 @@ func (b *Bot) handleStats(ctx context.Context, roomID string) {
 		total += h.Count
 	}
 
-	doc := notify.New().Heading(3, "Обнимашки за последние 24 часа").Line()
-	doc.Text(fmt.Sprintf("Всего принято: %d", total))
+	doc := notify.New().Heading(1, "Обнимашки за 24 часа")
+	doc.Text("Всего принято: ").Bold(fmt.Sprintf("%d", total))
 
 	if total == 0 {
 		doc.Line().Line().Italic("Пока тихо — никто никого не обнял за сутки.")
@@ -318,7 +315,7 @@ func (b *Bot) handleDaily(ctx context.Context, roomID, sender string) {
 		return
 	}
 
-	doc := notify.New()
+	doc := notify.New().Heading(1, "🎁 Ежедневная награда")
 	if already {
 		doc.Text("На сегодня награда уже у вас. Серия: ").Bold(fmt.Sprintf("%d", streak)).Text(" дн.").Line()
 		doc.Text("Возвращайтесь завтра — я напомню сама.")
